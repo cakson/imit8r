@@ -73,6 +73,10 @@ const loadConfig = (): Config => {
   return yaml.load(configFile) as Config;
 };
 
+// Load mock modules based on the configuration file and cookie overrides.
+// `passthrough` keeps track of fields whose variant is `-1`, meaning the
+// request for those fields should be forwarded to the real API instead of
+// being mocked locally.
 const loadMocks = async (
   config: Config
 ): Promise<{ mocks: Mocks; passthrough: Passthrough }> => {
@@ -80,11 +84,6 @@ const loadMocks = async (
   const passthrough: Passthrough = {};
   for (const [type, configValue] of Object.entries(config.mocks)) {
     if (typeof configValue === "string" || typeof configValue === "number") {
-      if (configValue === -1 && (type === "Query" || type === "Mutation")) {
-        passthrough[type] = passthrough[type] || new Set();
-        // passthrough all fields under this root type
-        continue;
-      }
       await loadTypeLevelMock(type, configValue, mocks);
     } else {
       await loadFieldLevelMock(
@@ -98,6 +97,8 @@ const loadMocks = async (
   return { mocks, passthrough };
 };
 
+// Load a mock implementation for an entire type (e.g. `Query` or `User`).
+// `configValue` indicates which variant file to load from `mocks/<type>`.
 const loadTypeLevelMock = async (type: string, configValue: string | number, mocks: Mocks) => {
   const directoryPath = path.join(__dirname, `./mocks/${type}`);
   const files = fs.existsSync(directoryPath) ? fs.readdirSync(directoryPath) : [];
@@ -107,6 +108,8 @@ const loadTypeLevelMock = async (type: string, configValue: string | number, moc
   await importMockFile(mockFilePath, mocks, type);
 };
 
+// Load mocks for individual fields of a type. If a field's variant is `-1`
+// we record it in `passthrough` so the downstream server handles it.
 const loadFieldLevelMock = async (
   type: string,
   configValue: Record<string, string | number>,
@@ -129,6 +132,8 @@ const loadFieldLevelMock = async (
   }
 };
 
+// Resolve the file that matches the requested variant index. We allow both
+// `<index>_description.ts` and `<index>.ts` naming schemes for convenience.
 const findMockFile = (files: string[], configValue: string | number): string | undefined => {
   return (
     files.find((f) => f.startsWith(`${configValue}_`)) ||
@@ -136,6 +141,9 @@ const findMockFile = (files: string[], configValue: string | number): string | u
   );
 };
 
+// Dynamically import a mock implementation and attach it to the given target
+// object. Failures are logged but do not crash the server so missing mocks are
+// easier to debug.
 const importMockFile = async (mockFilePath: string, target: any, key: string) => {
   try {
     const mod = await import(mockFilePath);
@@ -145,6 +153,11 @@ const importMockFile = async (mockFilePath: string, target: any, key: string) =>
   }
 };
 
+// Build resolver functions that simply proxy matching fields to the downstream
+// GraphQL server. Each resolver issues an HTTP POST to `url` with the original
+// query and variables so the real server can execute it. Only the field marked
+// with variant `-1` is returned to preserve existing mock data for other
+// fields.
 const createPassthroughResolvers = (
   passthrough: Passthrough,
   url: string
@@ -174,6 +187,8 @@ const createPassthroughResolvers = (
         if (json.errors) {
           throw new Error(JSON.stringify(json.errors));
         }
+        // Return only the requested field's value from the downstream response
+        // so the rest of the mocked schema stays untouched.
         return json.data[info.fieldName];
       };
     }
@@ -183,6 +198,8 @@ const createPassthroughResolvers = (
 
 const defaultConfig = loadConfig();
 
+// Very small cookie parser that returns an object mapping cookie names to
+// values. We only care about `mock_config` so a minimal parser is sufficient.
 const parseCookie = (cookieHeader: string | undefined): Record<string, string> => {
   const result: Record<string, string> = {};
   if (!cookieHeader) return result;
@@ -197,6 +214,8 @@ const parseCookie = (cookieHeader: string | undefined): Record<string, string> =
   return result;
 };
 
+// Merge the base configuration loaded from `config.yml` with any overrides
+// provided via the `mock_config` cookie.
 const mergeConfigs = (base: Config, override: Partial<MockConfig>): Config => {
   const merged: MockConfig = JSON.parse(JSON.stringify(base.mocks));
   for (const [type, value] of Object.entries(override)) {
@@ -239,13 +258,18 @@ const applyDefaultMocks = (config: Config): Config => {
   return { ...config, mocks: merged };
 };
 
+// HTTP server that accepts GraphQL POST requests. The incoming request body is
+// parsed and combined with any `mock_config` cookie. The resulting config is
+// used to load mock modules and build the executable schema on the fly.
 const server = createServer(async (req, res) => {
+  // Enforce POST to keep things simple.
   if (req.method !== "POST") {
     res.statusCode = 405;
     res.end("Method Not Allowed");
     return;
   }
 
+  // Collect the request payload.
   let body = "";
   req.on("data", (chunk) => (body += chunk));
   await new Promise((resolve) => req.on("end", resolve));
@@ -259,15 +283,20 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // Cookie-based override allows clients to pick variants dynamically.
   const cookies = parseCookie(req.headers.cookie);
   const overrideConfig = cookies.mock_config
     ? (JSON.parse(cookies.mock_config) as MockConfig)
     : {};
+  // Merge cookie overrides with config.yml and apply default variant "0" where
+  // no variant is specified.
   const finalConfig = applyDefaultMocks(
     mergeConfigs(defaultConfig, overrideConfig)
   );
   const { mocks, passthrough } = await loadMocks(finalConfig);
   const resolvers = createPassthroughResolvers(passthrough, finalConfig.downstream_url);
+  // Compose the executable schema by combining the original schema, loaded
+  // mocks, and passthrough resolvers for any fields marked with `-1`.
   const schema = addMocksToSchema({
     schema: baseSchema,
     mocks,
@@ -275,6 +304,9 @@ const server = createServer(async (req, res) => {
     preserveResolvers: true,
   });
 
+  // Execute the query against the mocked schema. We pass the original query
+  // and variables through the context so passthrough resolvers can forward them
+  // unchanged to the real server when necessary.
   const result = await graphql({
     schema,
     source: payload.query,
@@ -292,5 +324,6 @@ const server = createServer(async (req, res) => {
 
 const PORT = 44361;
 server.listen(PORT, () => {
+  // eslint-disable-next-line no-console -- helpful during development
   console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
 });
