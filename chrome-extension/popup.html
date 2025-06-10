@@ -12,6 +12,11 @@
 <body>
   <label>GraphQL endpoint: <input id="endpoint" type="text" size="30" /></label>
   <button id="load">Load Schema</button>
+  <div>
+    <label>Local introspection JSON:
+      <input id="schemaFile" type="file" accept=".json" />
+    </label>
+  </div>
   <div id="fields"></div>
   <button id="apply">Apply</button>
   <script src="popup.js"></script>

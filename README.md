@@ -149,8 +149,9 @@ The server is written in TypeScript and executed via `tsx`.  After modifying the
 ## Chrome extension
 
 A simple Chrome extension is provided under `chrome-extension/` for quickly
-setting the `mock_config` cookie. It fetches the GraphQL schema from the active
-page, generates fields for Query and Mutation types and lets you choose variant
+setting the `mock_config` cookie. It can load the GraphQL schema from the
+current page **or** from a local introspection JSON file. The extension
+generates inputs for Query and Mutation fields so you can choose variant
 numbers. Press **Apply** to write the cookie for the current site.
 
 Load the extension in developer mode by selecting the folder and opening the

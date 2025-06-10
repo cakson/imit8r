@@ -2,6 +2,7 @@ const endpointInput = document.getElementById('endpoint');
 const loadBtn = document.getElementById('load');
 const fieldsDiv = document.getElementById('fields');
 const applyBtn = document.getElementById('apply');
+const schemaFileInput = document.getElementById('schemaFile');
 
 // Fetch the active tab URL to guess the GraphQL endpoint
 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -22,6 +23,27 @@ loadBtn.addEventListener('click', async () => {
   } catch (e) {
     fieldsDiv.textContent = 'Failed to load schema';
   }
+});
+
+// Load schema from uploaded file
+schemaFileInput.addEventListener('change', () => {
+  const file = schemaFileInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const json = JSON.parse(reader.result);
+      const schema = json.data ? json.data.__schema : json.__schema;
+      if (schema) {
+        renderFields(schema);
+      } else {
+        fieldsDiv.textContent = 'Invalid schema file';
+      }
+    } catch {
+      fieldsDiv.textContent = 'Invalid schema file';
+    }
+  };
+  reader.readAsText(file);
 });
 
 applyBtn.addEventListener('click', () => {
