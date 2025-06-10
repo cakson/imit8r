@@ -28,7 +28,27 @@ interface MockConfig {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const typeDefs = mergeTypeDefs(loadFilesSync(path.join(__dirname, "./schema/*.graphql")));
+const typeDefs = mergeTypeDefs(
+  loadFilesSync(path.join(__dirname, "./schema/*.graphql"))
+);
+
+const REAL_API_URL = process.env.REAL_API_URL || "http://localhost:4000/graphql";
+
+const fetchField = async (query: string, field: string): Promise<any> => {
+  try {
+    const res = await fetch(REAL_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
+    const json = await res.json();
+    return json.data?.[field];
+  } catch (err) {
+    console.error("Failed to fetch real data", err);
+    return null;
+  }
+};
+
 const baseSchema = makeExecutableSchema({ typeDefs });
 
 const loadConfig = (): Config => {
@@ -49,6 +69,11 @@ const loadMocks = async (config: Config): Promise<Mocks> => {
 };
 
 const loadTypeLevelMock = async (type: string, configValue: string | number, mocks: Mocks) => {
+  if (configValue === -1) {
+    mocks[type] = async () =>
+      fetchField(`{ ${type.toLowerCase()} }`, type.toLowerCase());
+    return;
+  }
   const directoryPath = path.join(__dirname, `./mocks/${type}`);
   const files = fs.existsSync(directoryPath) ? fs.readdirSync(directoryPath) : [];
   const mockFile = findMockFile(files, configValue);
@@ -64,6 +89,11 @@ const loadFieldLevelMock = async (
 ) => {
   mocks[type] = mocks[type] || {};
   for (const [fieldName, index] of Object.entries(configValue)) {
+    if (index === -1) {
+      mocks[type][fieldName] = () =>
+        fetchField(`{ ${fieldName} }`, fieldName);
+      continue;
+    }
     const directoryPath = path.join(__dirname, `./mocks/${type}/${fieldName}`);
     const files = fs.existsSync(directoryPath) ? fs.readdirSync(directoryPath) : [];
     const mockFile = findMockFile(files, index);
@@ -144,8 +174,12 @@ const server = createServer(async (req, res) => {
   const cookies = parseCookie(req.headers.cookie);
   const overrideConfig = cookies.mock_config ? (JSON.parse(cookies.mock_config) as MockConfig) : {};
   const finalConfig = mergeConfigs(defaultConfig, overrideConfig);
+  console.log('Using config:', JSON.stringify(finalConfig));
   const mocks = await loadMocks(finalConfig);
-  const schema = addMocksToSchema({ schema: baseSchema, mocks });
+  const schema = addMocksToSchema({
+    schema: baseSchema,
+    mocks,
+  });
 
   const result = await graphql({
     schema,

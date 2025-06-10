@@ -1,3 +1,3 @@
 export default () => {
-  return "Hello from variant 1";
+  return { foo: "hello foo v1", abc: "hello abc v1", num: 2 };
 };
