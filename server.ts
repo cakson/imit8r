@@ -17,8 +17,13 @@ interface Mocks {
   [type: string]: MockResolver;
 }
 
+interface Passthrough {
+  [type: string]: Set<string>;
+}
+
 interface Config {
   mocks: MockConfig;
+  downstream_url: string;
 }
 
 interface MockConfig {
@@ -36,16 +41,29 @@ const loadConfig = (): Config => {
   return yaml.load(configFile) as Config;
 };
 
-const loadMocks = async (config: Config): Promise<Mocks> => {
+const loadMocks = async (
+  config: Config
+): Promise<{ mocks: Mocks; passthrough: Passthrough }> => {
   const mocks: Mocks = {};
+  const passthrough: Passthrough = {};
   for (const [type, configValue] of Object.entries(config.mocks)) {
     if (typeof configValue === "string" || typeof configValue === "number") {
+      if (configValue === -1 && (type === "Query" || type === "Mutation")) {
+        passthrough[type] = passthrough[type] || new Set();
+        // passthrough all fields under this root type
+        continue;
+      }
       await loadTypeLevelMock(type, configValue, mocks);
     } else {
-      await loadFieldLevelMock(type, configValue as Record<string, string | number>, mocks);
+      await loadFieldLevelMock(
+        type,
+        configValue as Record<string, string | number>,
+        mocks,
+        passthrough
+      );
     }
   }
-  return mocks;
+  return { mocks, passthrough };
 };
 
 const loadTypeLevelMock = async (type: string, configValue: string | number, mocks: Mocks) => {
@@ -61,9 +79,15 @@ const loadFieldLevelMock = async (
   type: string,
   configValue: Record<string, string | number>,
   mocks: Mocks,
+  passthrough: Passthrough
 ) => {
   mocks[type] = mocks[type] || {};
   for (const [fieldName, index] of Object.entries(configValue)) {
+    if (index === -1 && (type === "Query" || type === "Mutation")) {
+      passthrough[type] = passthrough[type] || new Set();
+      passthrough[type].add(fieldName);
+      continue;
+    }
     const directoryPath = path.join(__dirname, `./mocks/${type}/${fieldName}`);
     const files = fs.existsSync(directoryPath) ? fs.readdirSync(directoryPath) : [];
     const mockFile = findMockFile(files, index);
@@ -87,6 +111,42 @@ const importMockFile = async (mockFilePath: string, target: any, key: string) =>
   } catch (e) {
     console.error(`Failed to load mock ${mockFilePath}`, e);
   }
+};
+
+const createPassthroughResolvers = (
+  passthrough: Passthrough,
+  url: string
+) => {
+  const resolvers: Record<string, Record<string, any>> = {};
+  for (const [type, fields] of Object.entries(passthrough)) {
+    resolvers[type] = resolvers[type] || {};
+    for (const field of fields) {
+      resolvers[type][field] = async (
+        _parent: unknown,
+        _args: unknown,
+        context: any,
+        info: any
+      ) => {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(context.token ? { token: context.token } : {}),
+          },
+          body: JSON.stringify({
+            query: context.originalQuery,
+            variables: context.variables,
+          }),
+        });
+        const json = await response.json();
+        if (json.errors) {
+          throw new Error(JSON.stringify(json.errors));
+        }
+        return json.data[info.fieldName];
+      };
+    }
+  }
+  return resolvers;
 };
 
 const defaultConfig = loadConfig();
@@ -118,7 +178,7 @@ const mergeConfigs = (base: Config, override: Partial<MockConfig>): Config => {
       }
     }
   }
-  return { mocks: merged };
+  return { mocks: merged, downstream_url: base.downstream_url };
 };
 
 const server = createServer(async (req, res) => {
@@ -142,16 +202,28 @@ const server = createServer(async (req, res) => {
   }
 
   const cookies = parseCookie(req.headers.cookie);
-  const overrideConfig = cookies.mock_config ? (JSON.parse(cookies.mock_config) as MockConfig) : {};
+  const overrideConfig = cookies.mock_config
+    ? (JSON.parse(cookies.mock_config) as MockConfig)
+    : {};
   const finalConfig = mergeConfigs(defaultConfig, overrideConfig);
-  const mocks = await loadMocks(finalConfig);
-  const schema = addMocksToSchema({ schema: baseSchema, mocks });
+  const { mocks, passthrough } = await loadMocks(finalConfig);
+  const resolvers = createPassthroughResolvers(passthrough, finalConfig.downstream_url);
+  const schema = addMocksToSchema({
+    schema: baseSchema,
+    mocks,
+    resolvers,
+    preserveResolvers: true,
+  });
 
   const result = await graphql({
     schema,
     source: payload.query,
     variableValues: payload.variables,
-    contextValue: { token: req.headers.token },
+    contextValue: {
+      token: req.headers.token,
+      originalQuery: payload.query,
+      variables: payload.variables,
+    },
   });
 
   res.setHeader("Content-Type", "application/json");
