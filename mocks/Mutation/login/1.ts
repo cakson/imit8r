@@ -1,3 +1,5 @@
-export default () => ({
-  message: "Invalid credentials"
-});
+import { GraphQLError } from "graphql";
+
+export default () => {
+  throw new GraphQLError("Invalid credentials");
+};

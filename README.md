@@ -63,8 +63,11 @@ export default () => ({
   posts: []
 });
 
-// mocks/Query/user/1.ts - not found
-export default null;
+// mocks/Query/user/1.ts - not found variant throws an error
+import { GraphQLError } from "graphql";
+export default () => {
+  throw new GraphQLError("User not found");
+};
 ```
 
 Variant numbers begin at `0`.  A file named `0.ts` is treated as the default when no variant is specified.
@@ -110,8 +113,11 @@ export default () => ({
   user: { id: "1", name: "Alice", role: "ADMIN" }
 });
 
-// mocks/Mutation/login/1.ts - error
-export default () => ({ message: "Invalid credentials" });
+// mocks/Mutation/login/1.ts - error variant throws an error
+import { GraphQLError } from "graphql";
+export default () => {
+  throw new GraphQLError("Invalid credentials");
+};
 ```
 
 You can request the error variant by sending:
