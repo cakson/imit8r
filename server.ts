@@ -36,6 +36,38 @@ const __dirname = path.dirname(__filename);
 const typeDefs = mergeTypeDefs(loadFilesSync(path.join(__dirname, "./schema/*.graphql")));
 const baseSchema = makeExecutableSchema({ typeDefs });
 
+// Scan the local mocks directory to discover which types/fields have a `0.ts`
+// mock variant. We use this information so that missing entries in config
+// automatically fall back to variant 0.
+const discoverDefaults = (): MockConfig => {
+  const defaults: MockConfig = {};
+  const root = path.join(__dirname, "./mocks");
+  if (!fs.existsSync(root)) return defaults;
+  for (const type of fs.readdirSync(root)) {
+    const typePath = path.join(root, type);
+    if (!fs.statSync(typePath).isDirectory()) continue;
+    const entries = fs.readdirSync(typePath);
+    if (entries.some((f) => f.match(/^0(\.|_)/))) {
+      defaults[type] = 0;
+    }
+    for (const field of entries) {
+      const fieldPath = path.join(typePath, field);
+      if (!fs.statSync(fieldPath).isDirectory()) continue;
+      const files = fs.readdirSync(fieldPath);
+      if (files.some((f) => f.match(/^0(\.|_)/))) {
+        if (typeof defaults[type] !== "object") {
+          defaults[type] = {};
+        }
+        (defaults[type] as Record<string, string | number>)[field] = 0;
+      }
+    }
+  }
+  return defaults;
+};
+
+// Cache discovered defaults so we don't hit the filesystem on every request.
+const discoveredDefaultMocks = discoverDefaults();
+
 const loadConfig = (): Config => {
   const configFile = fs.readFileSync(path.join(__dirname, "./config/config.yml"), "utf8");
   return yaml.load(configFile) as Config;
@@ -181,6 +213,32 @@ const mergeConfigs = (base: Config, override: Partial<MockConfig>): Config => {
   return { mocks: merged, downstream_url: base.downstream_url };
 };
 
+// Apply discovered default variant "0" for any type or field not explicitly
+// configured. This ensures `mock_config=` behaves the same as specifying
+// `0` for every available mock.
+const applyDefaultMocks = (config: Config): Config => {
+  const merged: MockConfig = JSON.parse(JSON.stringify(config.mocks));
+  for (const [type, value] of Object.entries(discoveredDefaultMocks)) {
+    if (!(type in merged)) {
+      merged[type] = value;
+      continue;
+    }
+    if (
+      typeof value === "object" &&
+      typeof merged[type] === "object" &&
+      merged[type] !== null
+    ) {
+      const target = merged[type] as Record<string, string | number>;
+      for (const [field, idx] of Object.entries(value as Record<string, string | number>)) {
+        if (!(field in target)) {
+          target[field] = idx;
+        }
+      }
+    }
+  }
+  return { ...config, mocks: merged };
+};
+
 const server = createServer(async (req, res) => {
   if (req.method !== "POST") {
     res.statusCode = 405;
@@ -205,7 +263,9 @@ const server = createServer(async (req, res) => {
   const overrideConfig = cookies.mock_config
     ? (JSON.parse(cookies.mock_config) as MockConfig)
     : {};
-  const finalConfig = mergeConfigs(defaultConfig, overrideConfig);
+  const finalConfig = applyDefaultMocks(
+    mergeConfigs(defaultConfig, overrideConfig)
+  );
   const { mocks, passthrough } = await loadMocks(finalConfig);
   const resolvers = createPassthroughResolvers(passthrough, finalConfig.downstream_url);
   const schema = addMocksToSchema({
