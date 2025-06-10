@@ -1,3 +1,5 @@
-mocks:
-  Query:
-    hello: 0
+# URL for your real GraphQL API used when a field is set to variant `-1`.
+downstream_url: "http://localhost:4000/graphql"
+
+# Default mock variants. Leave empty to use `0.ts` everywhere.
+mocks: {}
