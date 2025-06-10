@@ -1,0 +1,1 @@
+export default () => "Universe default";

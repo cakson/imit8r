@@ -1,3 +1,11 @@
 type Query {
-  hello: String!
+  hello: Testing!
+  world: Testing!
+  universe: String!
+}
+
+type Testing {
+  foo: String!
+  abc: String!
+  num: Int!
 }
