@@ -1,5 +1,5 @@
 import { createServer } from "http";
-import { graphql } from "graphql";
+import { graphql, print, DocumentNode, OperationDefinitionNode } from "graphql";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import { addMocksToSchema } from "@graphql-tools/mock";
 import { loadFilesSync } from "@graphql-tools/load-files";
@@ -127,6 +127,45 @@ const parseCookie = (cookieHeader: string | undefined): Record<string, string> =
   return result;
 };
 
+const createPassthroughResolver = (
+  operation: "query" | "mutation"
+) => {
+  return async (
+    parent: any,
+    args: any,
+    context: any,
+    info: any
+  ) => {
+    const fieldNode = info.fieldNodes[0];
+    const op: OperationDefinitionNode = {
+      kind: "OperationDefinition",
+      operation,
+      name: info.operation.name,
+      variableDefinitions: info.operation.variableDefinitions,
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [fieldNode],
+      },
+    };
+    const doc: DocumentNode = {
+      kind: "Document",
+      definitions: [op, ...Object.values(info.fragments || {})],
+    };
+    const query = print(doc);
+    const response = await fetch(config.downstream_url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        token: context.token || "",
+      },
+      body: JSON.stringify({ query, variables: info.variableValues }),
+    });
+    const json = await response.json();
+    const key = fieldNode.alias ? fieldNode.alias.value : info.fieldName;
+    return json.data ? json.data[key] : undefined;
+  };
+};
+
 
 const server = createServer(async (req, res) => {
   if (req.method !== "POST") {
@@ -169,6 +208,23 @@ const server = createServer(async (req, res) => {
   }
 
   const mocks = await loadMocks(overrideConfig);
+  if (typeof overrideConfig.Query === "object") {
+    mocks.Query = mocks.Query || {};
+    for (const [field, idx] of Object.entries(overrideConfig.Query)) {
+      if (idx === -1) {
+        mocks.Query[field] = createPassthroughResolver("query");
+      }
+    }
+  }
+  if (typeof overrideConfig.Mutation === "object") {
+    mocks.Mutation = mocks.Mutation || {};
+    for (const [field, idx] of Object.entries(overrideConfig.Mutation)) {
+      if (idx === -1) {
+        mocks.Mutation[field] = createPassthroughResolver("mutation");
+      }
+    }
+  }
+
   const schema = addMocksToSchema({ schema: baseSchema, mocks });
 
   const result = await graphql({
