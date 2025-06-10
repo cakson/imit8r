@@ -52,6 +52,21 @@ export default () => ({
 });
 ```
 
+Example query mock:
+
+```ts
+// mocks/Query/user/0.ts - found user
+export default () => ({
+  id: "2",
+  name: "Bob",
+  role: "USER",
+  posts: []
+});
+
+// mocks/Query/user/1.ts - not found
+export default null;
+```
+
 Variant numbers begin at `0`.  A file named `0.ts` is treated as the default when no variant is specified.
 
 Mocks are optional.  If a field or type has no mock file the server automatically
@@ -103,6 +118,12 @@ You can request the error variant by sending:
 
 ```
 mock_config={"Mutation":{"login":1}}
+```
+
+Query variants work the same way. The following cookie picks the "not found" variant for `Query.user`:
+
+```
+mock_config={"Query":{"user":1}}
 ```
 
 ### Passthrough example
