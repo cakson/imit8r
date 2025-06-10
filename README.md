@@ -145,3 +145,13 @@ The rest of the query is resolved by the selected mocks.
 ## Development notes
 
 The server is written in TypeScript and executed via `tsx`.  After modifying the schema or mocks you will need to restart the server.  For contribution guidelines see [AGENTS.md](./AGENTS.md).
+
+## Chrome extension
+
+A simple Chrome extension is provided under `chrome-extension/` for quickly
+setting the `mock_config` cookie. It fetches the GraphQL schema from the active
+page, generates fields for Query and Mutation types and lets you choose variant
+numbers. Press **Apply** to write the cookie for the current site.
+
+Load the extension in developer mode by selecting the folder and opening the
+popup from the toolbar.

@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Imit8r Variant Manager",
+  "version": "1.0",
+  "description": "Select mock variants and inject them via cookies.",
+  "permissions": ["cookies", "activeTab"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
