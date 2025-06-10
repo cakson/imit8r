@@ -1,0 +1,23 @@
+{
+  "name": "imit8r",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "server.ts",
+  "scripts": {
+    "start": "tsx server.ts"
+  },
+  "dependencies": {
+    "@apollo/server": "^4.12.2",
+    "@graphql-tools/load-files": "^7.0.1",
+    "@graphql-tools/merge": "^9.0.24",
+    "@graphql-tools/mock": "^9.0.23",
+    "@graphql-tools/schema": "^10.0.23",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "ts-node": "^10.9.1",
+    "tsx": "^4.19.4",
+    "typescript": "^5.4.5"
+  }
+}
