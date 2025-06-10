@@ -17,8 +17,9 @@ interface Mocks {
   [type: string]: MockResolver;
 }
 
+
 interface Config {
-  mocks: MockConfig;
+  downstream_url: string;
 }
 
 interface MockConfig {
@@ -32,26 +33,41 @@ const typeDefs = mergeTypeDefs(loadFilesSync(path.join(__dirname, "./schema/*.gr
 const baseSchema = makeExecutableSchema({ typeDefs });
 
 const loadConfig = (): Config => {
-  const configFile = fs.readFileSync(path.join(__dirname, "./config/config.yml"), "utf8");
+  const configFile = fs.readFileSync(
+    path.join(__dirname, "./config/config.yml"),
+    "utf8"
+  );
   return yaml.load(configFile) as Config;
 };
 
-const loadMocks = async (config: Config): Promise<Mocks> => {
+const loadMocks = async (config: MockConfig): Promise<Mocks> => {
   const mocks: Mocks = {};
-  for (const [type, configValue] of Object.entries(config.mocks)) {
-    if (typeof configValue === "string" || typeof configValue === "number") {
-      await loadTypeLevelMock(type, configValue, mocks);
+  const mocksDir = path.join(__dirname, "./mocks");
+  const types = fs.existsSync(mocksDir) ? fs.readdirSync(mocksDir) : [];
+  for (const type of types) {
+    const typeConfig = config[type];
+    if (typeConfig === -1) continue;
+    if (typeof typeConfig === "string" || typeof typeConfig === "number") {
+      await loadTypeLevelMock(type, typeConfig, mocks);
+    } else if (typeof typeConfig === "object") {
+      await loadFieldLevelMock(type, typeConfig as Record<string, string | number>, mocks);
     } else {
-      await loadFieldLevelMock(type, configValue as Record<string, string | number>, mocks);
+      await loadTypeLevelMock(type, 0, mocks);
     }
   }
   return mocks;
 };
 
-const loadTypeLevelMock = async (type: string, configValue: string | number, mocks: Mocks) => {
+const loadTypeLevelMock = async (
+  type: string,
+  configValue: string | number | undefined,
+  mocks: Mocks
+) => {
   const directoryPath = path.join(__dirname, `./mocks/${type}`);
-  const files = fs.existsSync(directoryPath) ? fs.readdirSync(directoryPath) : [];
-  const mockFile = findMockFile(files, configValue);
+  if (!fs.existsSync(directoryPath)) return;
+  const files = fs.readdirSync(directoryPath);
+  const variant = configValue ?? 0;
+  const mockFile = findMockFile(files, variant);
   if (!mockFile) return;
   const mockFilePath = path.join(directoryPath, mockFile);
   await importMockFile(mockFilePath, mocks, type);
@@ -60,13 +76,19 @@ const loadTypeLevelMock = async (type: string, configValue: string | number, moc
 const loadFieldLevelMock = async (
   type: string,
   configValue: Record<string, string | number>,
-  mocks: Mocks,
+  mocks: Mocks
 ) => {
   mocks[type] = mocks[type] || {};
-  for (const [fieldName, index] of Object.entries(configValue)) {
-    const directoryPath = path.join(__dirname, `./mocks/${type}/${fieldName}`);
-    const files = fs.existsSync(directoryPath) ? fs.readdirSync(directoryPath) : [];
-    const mockFile = findMockFile(files, index);
+  const typeDir = path.join(__dirname, `./mocks/${type}`);
+  const fields = fs.existsSync(typeDir) ? fs.readdirSync(typeDir) : [];
+  for (const fieldName of fields) {
+    const directoryPath = path.join(typeDir, fieldName);
+    if (!fs.statSync(directoryPath).isDirectory()) continue;
+    const index = configValue[fieldName];
+    if (index === -1) continue;
+    const files = fs.readdirSync(directoryPath);
+    const variant = index !== undefined ? index : 0;
+    const mockFile = findMockFile(files, variant);
     if (!mockFile) continue;
     const mockFilePath = path.join(directoryPath, mockFile);
     await importMockFile(mockFilePath, mocks[type], fieldName);
@@ -89,7 +111,7 @@ const importMockFile = async (mockFilePath: string, target: any, key: string) =>
   }
 };
 
-const defaultConfig = loadConfig();
+const config = loadConfig();
 
 const parseCookie = (cookieHeader: string | undefined): Record<string, string> => {
   const result: Record<string, string> = {};
@@ -105,21 +127,6 @@ const parseCookie = (cookieHeader: string | undefined): Record<string, string> =
   return result;
 };
 
-const mergeConfigs = (base: Config, override: Partial<MockConfig>): Config => {
-  const merged: MockConfig = JSON.parse(JSON.stringify(base.mocks));
-  for (const [type, value] of Object.entries(override)) {
-    if (typeof value === "string" || typeof value === "number") {
-      merged[type] = value;
-    } else {
-      merged[type] = merged[type] || {};
-      const baseFields = merged[type] as Record<string, string | number>;
-      for (const [field, idx] of Object.entries(value || {})) {
-        baseFields[field] = idx;
-      }
-    }
-  }
-  return { mocks: merged };
-};
 
 const server = createServer(async (req, res) => {
   if (req.method !== "POST") {
@@ -142,9 +149,26 @@ const server = createServer(async (req, res) => {
   }
 
   const cookies = parseCookie(req.headers.cookie);
-  const overrideConfig = cookies.mock_config ? (JSON.parse(cookies.mock_config) as MockConfig) : {};
-  const finalConfig = mergeConfigs(defaultConfig, overrideConfig);
-  const mocks = await loadMocks(finalConfig);
+  const overrideConfig = cookies.mock_config
+    ? (JSON.parse(cookies.mock_config) as MockConfig)
+    : {};
+
+  if (overrideConfig.Query === -1 || overrideConfig.Mutation === -1) {
+    const response = await fetch(config.downstream_url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        token: (req.headers.token as string) || "",
+      },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.text();
+    res.setHeader("Content-Type", "application/json");
+    res.end(result);
+    return;
+  }
+
+  const mocks = await loadMocks(overrideConfig);
   const schema = addMocksToSchema({ schema: baseSchema, mocks });
 
   const result = await graphql({
