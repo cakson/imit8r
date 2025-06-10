@@ -199,7 +199,9 @@ const createPassthroughResolvers = (
 const defaultConfig = loadConfig();
 
 // Very small cookie parser that returns an object mapping cookie names to
-// values. We only care about `mock_config` so a minimal parser is sufficient.
+// values. A malformed cookie should result in a clear 400 error instead of
+// crashing the server, so we throw if decoding fails and let the caller handle
+// it.
 const parseCookie = (cookieHeader: string | undefined): Record<string, string> => {
   const result: Record<string, string> = {};
   if (!cookieHeader) return result;
@@ -209,7 +211,13 @@ const parseCookie = (cookieHeader: string | undefined): Record<string, string> =
     if (idx < 0) continue;
     const key = pair.substring(0, idx).trim();
     const val = pair.substring(idx + 1).trim();
-    result[key] = decodeURIComponent(val);
+    try {
+      result[key] = decodeURIComponent(val);
+    } catch {
+      // Bubble up a failure to decode so the HTTP handler can respond with 400
+      // rather than letting the server crash.
+      throw new Error("Invalid cookie encoding");
+    }
   }
   return result;
 };
@@ -283,11 +291,28 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // Cookie-based override allows clients to pick variants dynamically.
-  const cookies = parseCookie(req.headers.cookie);
-  const overrideConfig = cookies.mock_config
-    ? (JSON.parse(cookies.mock_config) as MockConfig)
-    : {};
+  // Cookie-based override allows clients to pick variants dynamically. Parsing
+  // can fail if the cookie is malformed, so handle those cases gracefully and
+  // return a helpful 400 error instead of crashing.
+  let cookies: Record<string, string>;
+  try {
+    cookies = parseCookie(req.headers.cookie);
+  } catch {
+    res.statusCode = 400;
+    res.end("Invalid cookie");
+    return;
+  }
+
+  let overrideConfig: Partial<MockConfig> = {};
+  if (cookies.mock_config) {
+    try {
+      overrideConfig = JSON.parse(cookies.mock_config) as MockConfig;
+    } catch {
+      res.statusCode = 400;
+      res.end("Invalid mock_config cookie");
+      return;
+    }
+  }
   // Merge cookie overrides with config.yml and apply default variant "0" where
   // no variant is specified.
   const finalConfig = applyDefaultMocks(
