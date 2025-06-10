@@ -23,7 +23,3 @@ mock_config={"Query":{"hello":1,"world":-1}}
 
 Numbers pick a variant from the `mocks` directory. Setting a field to `-1`
 forwards that part of the request to the downstream server.
-
-## Shameless plug
-
-If Imit8r saves you time, please star the repo or tell a friend about it!

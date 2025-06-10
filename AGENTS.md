@@ -8,4 +8,3 @@
   - `npm start`
 - Place new mocks under the `mocks/` directory and update `config/config.yml`
   only if a default different from `0.ts` is needed.
-- Shameless plug: star the repo if this project helps you!
