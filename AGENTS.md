@@ -1,10 +1,10 @@
 # Contribution guidelines
 
-- Keep TypeScript code in `server.ts` commented generously so new contributors
-  can follow the logic.
-- Always run the following commands before committing:
+- Keep the TypeScript code in `server.ts` heavily commented so new contributors can easily follow the logic.
+- Before committing **always** run:
   - `npm install`
   - `npx tsc -p tsconfig.json`
   - `npm start`
-- Place new mocks under the `mocks/` directory and update `config/config.yml`
-  only if a default different from `0.ts` is needed.
+  Verify that the server starts without errors, then stop it.
+- Place new mock files under `mocks/` and only edit `config/config.yml` if you need a default variant other than `0.ts`.
+- Update the `README.md` whenever you introduce new features or configuration options.
