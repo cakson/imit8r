@@ -67,6 +67,7 @@ function renderForm(schema, saved = {}) {
       input.addEventListener('input', saveConfig);
     });
   });
+  updateJsonPreview();
 }
 
 function getConfig() {
@@ -87,9 +88,17 @@ function getConfig() {
   return config;
 }
 
+function updateJsonPreview() {
+  const pre = document.getElementById('jsonOutput');
+  if (pre) {
+    pre.textContent = JSON.stringify(getConfig(), null, 2);
+  }
+}
+
 function saveConfig() {
   const config = getConfig();
   chrome.storage.local.set({ config });
+  updateJsonPreview();
 }
 
 function setCookie(config) {
@@ -121,6 +130,7 @@ document.getElementById('applyBtn').addEventListener('click', () => {
   const config = getConfig();
   chrome.storage.local.set({ config });
   setCookie(config);
+  updateJsonPreview();
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -129,5 +139,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const schema = parseSchema(data.schemaText);
       renderForm(schema, data.config || {});
     }
+    updateJsonPreview();
+  });
+  document.getElementById('copyBtn').addEventListener('click', () => {
+    const text = document.getElementById('jsonOutput').textContent;
+    navigator.clipboard.writeText(text);
   });
 });

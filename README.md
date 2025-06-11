@@ -148,6 +148,9 @@ your GraphQL schema, adjust variant numbers in the popup and press
 **Apply**. The extension sets the cookie for the active tab based on the
 form values. Your last uploaded schema and variant selections are stored
 so reopening the popup restores them automatically.
+The popup now displays the current configuration as beautified JSON next
+to the form. Use the **Copy** button to copy the JSON to your clipboard
+for sharing or inspection.
 
 ### Passthrough example
 
