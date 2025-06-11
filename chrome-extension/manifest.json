@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Mock Config Editor",
+  "description": "Upload a schema and set mock variants via cookie.",
+  "version": "1.0",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": ["cookies", "activeTab", "tabs", "storage"],
+  "host_permissions": ["<all_urls>"]
+}

@@ -132,6 +132,15 @@ Query variants work the same way. The following cookie picks the "not found" var
 mock_config={"Query":{"user":1}}
 ```
 
+### Chrome extension
+
+To simplify editing the `mock_config` cookie a Chrome extension lives in
+`chrome-extension/`. Load this folder as an unpacked extension, upload
+your GraphQL schema, adjust variant numbers in the popup and press
+**Apply**. The extension sets the cookie for the active tab based on the
+form values. Your last uploaded schema and variant selections are stored
+so reopening the popup restores them automatically.
+
 ### Passthrough example
 
 To fetch data for `Query.user` from the real API while using local mocks for everything else:
