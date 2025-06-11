@@ -151,6 +151,7 @@ so reopening the popup restores them automatically.
 The popup now displays the current configuration as beautified JSON next
 to the form. Use the **Copy** button to copy the JSON to your clipboard
 for sharing or inspection.
+Variants left at `0` are omitted from the JSON preview since `0` is treated as the default.
 
 ### Passthrough example
 

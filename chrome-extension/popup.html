@@ -6,7 +6,12 @@
   <style>
     body { font-family: Arial, sans-serif; margin: 10px; }
     #container { display: flex; align-items: flex-start; }
-    #formContainer { flex: 1; margin-right: 10px; }
+    #formContainer {
+      flex: 1;
+      margin-right: 10px;
+      max-height: 400px;
+      overflow: auto;
+    }
     #jsonContainer { flex: 1; }
     #jsonOutput {
       white-space: pre-wrap;
@@ -19,10 +24,12 @@
     .field { margin-bottom: 8px; }
     .type { margin-top: 10px; font-weight: bold; }
     input[type=number] { width: 60px; }
+    #applyBtn { margin-left: 10px; }
   </style>
 </head>
 <body>
   <input type="file" id="schemaFile" />
+  <button id="applyBtn">Apply</button>
   <div id="container">
     <div id="formContainer"></div>
     <div id="jsonContainer">
@@ -30,7 +37,6 @@
       <button id="copyBtn">Copy</button>
     </div>
   </div>
-  <button id="applyBtn">Apply</button>
   <script src="popup.js"></script>
 </body>
 </html>

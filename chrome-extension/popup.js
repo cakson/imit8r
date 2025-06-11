@@ -21,7 +21,15 @@ function parseSchema(text) {
 function renderForm(schema, saved = {}) {
   const container = document.getElementById('formContainer');
   container.innerHTML = '';
-  Object.entries(schema).forEach(([type, fields]) => {
+  const entries = Object.entries(schema);
+  entries.sort(([a], [b]) => {
+    const order = { Query: -2, Mutation: -1 };
+    const oa = order[a] ?? 0;
+    const ob = order[b] ?? 0;
+    if (oa !== ob) return oa - ob;
+    return a.localeCompare(b);
+  });
+  entries.forEach(([type, fields]) => {
     const typeHeader = document.createElement('div');
     typeHeader.textContent = type;
     typeHeader.className = 'type';
@@ -76,13 +84,18 @@ function getConfig() {
   inputs.forEach(input => {
     const path = input.dataset.path;
     const value = parseInt(input.value, 10);
-    if (isNaN(value)) return;
+    if (isNaN(value) || value === 0) return;
     const parts = path.split('.');
     if (parts.length === 1) {
       config[parts[0]] = value;
     } else {
       config[parts[0]] = config[parts[0]] || {};
       config[parts[0]][parts[1]] = value;
+    }
+  });
+  Object.keys(config).forEach(key => {
+    if (typeof config[key] === 'object' && Object.keys(config[key]).length === 0) {
+      delete config[key];
     }
   });
   return config;
