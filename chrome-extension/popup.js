@@ -18,7 +18,7 @@ function parseSchema(text) {
 }
 
 // Generate form inputs based on the parsed schema.
-function renderForm(schema) {
+function renderForm(schema, saved = {}) {
   const container = document.getElementById('formContainer');
   container.innerHTML = '';
   Object.entries(schema).forEach(([type, fields]) => {
@@ -34,11 +34,17 @@ function renderForm(schema) {
     typeLabel.textContent = 'variant:';
     const typeInput = document.createElement('input');
     typeInput.type = 'number';
-    typeInput.value = '0';
+    const savedType = saved[type];
+    if (typeof savedType === 'number') {
+      typeInput.value = String(savedType);
+    } else {
+      typeInput.value = '0';
+    }
     typeInput.dataset.path = type;
     typeDiv.appendChild(typeLabel);
     typeDiv.appendChild(typeInput);
     container.appendChild(typeDiv);
+    typeInput.addEventListener('input', saveConfig);
 
     fields.forEach(field => {
       const div = document.createElement('div');
@@ -47,11 +53,18 @@ function renderForm(schema) {
       label.textContent = `${field}:`;
       const input = document.createElement('input');
       input.type = 'number';
-      input.value = '0';
+      const savedField =
+        typeof savedType === 'object' ? savedType[field] : undefined;
+      if (typeof savedField === 'number') {
+        input.value = String(savedField);
+      } else {
+        input.value = '0';
+      }
       input.dataset.path = `${type}.${field}`;
       div.appendChild(label);
       div.appendChild(input);
       container.appendChild(div);
+      input.addEventListener('input', saveConfig);
     });
   });
 }
@@ -74,6 +87,11 @@ function getConfig() {
   return config;
 }
 
+function saveConfig() {
+  const config = getConfig();
+  chrome.storage.local.set({ config });
+}
+
 function setCookie(config) {
   chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
     if (!tabs.length) return;
@@ -94,11 +112,22 @@ document.getElementById('schemaFile').addEventListener('change', e => {
     const text = ev.target.result;
     const schema = parseSchema(text);
     renderForm(schema);
+    chrome.storage.local.set({ schemaText: text, config: getConfig() });
   };
   reader.readAsText(file);
 });
 
 document.getElementById('applyBtn').addEventListener('click', () => {
   const config = getConfig();
+  chrome.storage.local.set({ config });
   setCookie(config);
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  chrome.storage.local.get(['schemaText', 'config'], data => {
+    if (data.schemaText) {
+      const schema = parseSchema(data.schemaText);
+      renderForm(schema, data.config || {});
+    }
+  });
 });

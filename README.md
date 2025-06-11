@@ -138,7 +138,8 @@ To simplify editing the `mock_config` cookie a Chrome extension lives in
 `chrome-extension/`. Load this folder as an unpacked extension, upload
 your GraphQL schema, adjust variant numbers in the popup and press
 **Apply**. The extension sets the cookie for the active tab based on the
-form values.
+form values. Your last uploaded schema and variant selections are stored
+so reopening the popup restores them automatically.
 
 ### Passthrough example
 
