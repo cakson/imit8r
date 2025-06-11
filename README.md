@@ -17,6 +17,12 @@ npm install
 
 ## Running the server
 
+Before starting, copy the provided example configuration:
+
+```bash
+cp config/config.example.yml config/config.yml
+```
+
 ```bash
 npm start
 ```
@@ -35,19 +41,29 @@ queries.
 
 ```
 .
-├── schema/        # GraphQL schema files (*.graphql)
-├── mocks/         # Mock implementations
+├── example/
+│   ├── schema/    # Sample schema files
+│   └── mocks/     # Sample mock implementations
+├── schema/        # Your schema (gitignored)
+├── mocks/         # Your mocks (gitignored)
 ├── config/        # Configuration
 └── server.ts      # Server implementation
 ```
 
 ### Schema
 
-Put your GraphQL schema files under the `schema/` directory.  All `*.graphql` files are merged on start.
+When `use_example` is enabled in `config.yml` the server loads the sample schema
+from `example/schema`. Set `use_example: false` to instead load your own schema
+files from the root level `schema/` directory. All `*.graphql` files found in
+the selected directory are merged on start.
 
 ### Writing mocks
 
-Mocks live in `mocks/<Type>/<field>/<variant>.ts` for field level mocks or in `mocks/<Type>/<variant>.ts` for type level mocks.  Each file should **export a default value or function** returning the value.
+Mock files are loaded from `example/mocks` when `use_example` is enabled.
+With `use_example: false` the server instead loads mocks from the root level
+`mocks/` directory. Mocks live in `mocks/<Type>/<field>/<variant>.ts` for field
+level mocks or in `mocks/<Type>/<variant>.ts` for type level mocks. Each file
+should **export a default value or function** returning the value.
 
 Example field mock:
 
@@ -87,9 +103,10 @@ level mocks provide shape information for auto generated data.
 
 ### Configuration
 
-Edit `config/config.yml` to select the default mock variants and specify the downstream GraphQL API used for passthroughs.
+Copy `config/config.example.yml` to `config/config.yml` and edit the file to select the default mock variants and specify the downstream GraphQL API used for passthroughs.
 
 ```yaml
+use_example: true
 downstream_url: "http://localhost:4000/graphql"
 
 mocks:
@@ -99,6 +116,7 @@ mocks:
 
 - `downstream_url` – real GraphQL endpoint used when a field is set to `-1`.
 - `mocks` – default variant for each type or field.  Omit entries to fall back to `0.ts` when available.
+- `use_example` – load the bundled sample schema and mocks instead of local files.
 
 Restart the server after changing `config.yml`.
 

@@ -25,6 +25,7 @@ interface Passthrough {
 interface Config {
   mocks: MockConfig;
   downstream_url: string;
+  use_example: boolean;
 }
 
 interface MockConfig {
@@ -34,7 +35,36 @@ interface MockConfig {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const typeDefs = mergeTypeDefs(loadFilesSync(path.join(__dirname, "./schema/*.graphql")));
+// Load the YAML configuration from `config/config.yml`. If the file does not
+// exist we provide a clear error so new users know how to create it based on the
+// bundled example.
+function loadConfig(): Config {
+  const configPath = path.join(__dirname, "./config/config.yml");
+  if (!fs.existsSync(configPath)) {
+    throw new Error(
+      "Missing config/config.yml. Run `cp config/config.example.yml config/config.yml` to create it."
+    );
+  }
+  const configFile = fs.readFileSync(configPath, "utf8");
+  return yaml.load(configFile) as Config;
+}
+
+const defaultConfig = loadConfig();
+
+// Determine where to read schema and mocks from. When `use_example` is true the
+// server loads the bundled sample data under `example/`. Otherwise it expects
+// developers to provide their own files in the root level `schema/` and
+// `mocks/` directories which are gitignored by default.
+const schemaDir = path.join(
+  __dirname,
+  defaultConfig.use_example ? "./example/schema" : "./schema"
+);
+const mocksDir = path.join(
+  __dirname,
+  defaultConfig.use_example ? "./example/mocks" : "./mocks"
+);
+
+const typeDefs = mergeTypeDefs(loadFilesSync(path.join(schemaDir, "*.graphql")));
 const baseSchema = makeExecutableSchema({ typeDefs });
 
 // Generate the GraphQL Playground HTML once on startup using the helper from
@@ -52,7 +82,7 @@ const playgroundHtml = renderPlaygroundPage({
 // automatically fall back to variant 0.
 const discoverDefaults = (): MockConfig => {
   const defaults: MockConfig = {};
-  const root = path.join(__dirname, "./mocks");
+  const root = mocksDir;
   if (!fs.existsSync(root)) return defaults;
   for (const type of fs.readdirSync(root)) {
     const typePath = path.join(root, type);
@@ -79,10 +109,6 @@ const discoverDefaults = (): MockConfig => {
 // Cache discovered defaults so we don't hit the filesystem on every request.
 const discoveredDefaultMocks = discoverDefaults();
 
-const loadConfig = (): Config => {
-  const configFile = fs.readFileSync(path.join(__dirname, "./config/config.yml"), "utf8");
-  return yaml.load(configFile) as Config;
-};
 
 // Load mock modules based on the configuration file and cookie overrides.
 // `passthrough` keeps track of fields whose variant is `-1`, meaning the
@@ -110,8 +136,12 @@ const loadMocks = async (
 
 // Load a mock implementation for an entire type (e.g. `Query` or `User`).
 // `configValue` indicates which variant file to load from `mocks/<type>`.
-const loadTypeLevelMock = async (type: string, configValue: string | number, mocks: Mocks) => {
-  const directoryPath = path.join(__dirname, `./mocks/${type}`);
+const loadTypeLevelMock = async (
+  type: string,
+  configValue: string | number,
+  mocks: Mocks
+) => {
+  const directoryPath = path.join(mocksDir, type);
   const files = fs.existsSync(directoryPath) ? fs.readdirSync(directoryPath) : [];
   const mockFile = findMockFile(files, configValue);
   if (!mockFile) return;
@@ -134,7 +164,7 @@ const loadFieldLevelMock = async (
       passthrough[type].add(fieldName);
       continue;
     }
-    const directoryPath = path.join(__dirname, `./mocks/${type}/${fieldName}`);
+    const directoryPath = path.join(mocksDir, `${type}/${fieldName}`);
     const files = fs.existsSync(directoryPath) ? fs.readdirSync(directoryPath) : [];
     const mockFile = findMockFile(files, index);
     if (!mockFile) continue;
@@ -207,8 +237,6 @@ const createPassthroughResolvers = (
   return resolvers;
 };
 
-const defaultConfig = loadConfig();
-
 // Very small cookie parser that returns an object mapping cookie names to
 // values. A malformed cookie should result in a clear 400 error instead of
 // crashing the server, so we throw if decoding fails and let the caller handle
@@ -248,7 +276,7 @@ const mergeConfigs = (base: Config, override: Partial<MockConfig>): Config => {
       }
     }
   }
-  return { mocks: merged, downstream_url: base.downstream_url };
+  return { mocks: merged, downstream_url: base.downstream_url, use_example: base.use_example };
 };
 
 // Apply discovered default variant "0" for any type or field not explicitly
