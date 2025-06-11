@@ -40,7 +40,12 @@ const baseSchema = makeExecutableSchema({ typeDefs });
 // Generate the GraphQL Playground HTML once on startup using the helper from
 // Apollo Server. The resulting page is served on GET requests so you can easily
 // explore the schema and test queries in the browser.
-const playgroundHtml = renderPlaygroundPage({ endpoint: "/graphql" });
+const playgroundHtml = renderPlaygroundPage({
+  endpoint: "/graphql",
+  // Include cookies like `mock_config` in playground requests so variant
+  // selections made by the Chrome extension reach the server.
+  settings: { "request.credentials": "include" },
+});
 
 // Scan the local mocks directory to discover which types/fields have a `0.ts`
 // mock variant. We use this information so that missing entries in config
