@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@apollo/server": "^4.12.2",
+    "@apollographql/graphql-playground-html": "^1.6.29",
     "@graphql-tools/load-files": "^7.0.1",
     "@graphql-tools/merge": "^9.0.24",
     "@graphql-tools/mock": "^9.0.23",

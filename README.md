@@ -23,6 +23,10 @@ npm start
 
 The server listens on **http://localhost:44361/graphql**.
 
+Open this URL in your browser to access the GraphQL Playground powered by Apollo
+Server. The playground allows you to explore the schema and experiment with
+queries against the mock API.
+
 ## Project layout
 
 ```

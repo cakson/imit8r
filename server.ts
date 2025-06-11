@@ -4,6 +4,7 @@ import { makeExecutableSchema } from "@graphql-tools/schema";
 import { addMocksToSchema } from "@graphql-tools/mock";
 import { loadFilesSync } from "@graphql-tools/load-files";
 import { mergeTypeDefs } from "@graphql-tools/merge";
+import { renderPlaygroundPage } from "@apollographql/graphql-playground-html";
 import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
@@ -35,6 +36,11 @@ const __dirname = path.dirname(__filename);
 
 const typeDefs = mergeTypeDefs(loadFilesSync(path.join(__dirname, "./schema/*.graphql")));
 const baseSchema = makeExecutableSchema({ typeDefs });
+
+// Generate the GraphQL Playground HTML once on startup using the helper from
+// Apollo Server. The resulting page is served on GET requests so you can easily
+// explore the schema and test queries in the browser.
+const playgroundHtml = renderPlaygroundPage({ endpoint: "/graphql" });
 
 // Scan the local mocks directory to discover which types/fields have a `0.ts`
 // mock variant. We use this information so that missing entries in config
@@ -270,7 +276,14 @@ const applyDefaultMocks = (config: Config): Config => {
 // parsed and combined with any `mock_config` cookie. The resulting config is
 // used to load mock modules and build the executable schema on the fly.
 const server = createServer(async (req, res) => {
-  // Enforce POST to keep things simple.
+  // Serve the GraphQL Playground when a browser requests `/graphql` via GET.
+  if (req.method === "GET") {
+    res.setHeader("Content-Type", "text/html");
+    res.end(playgroundHtml);
+    return;
+  }
+
+  // Enforce POST for actual GraphQL operations to keep things simple.
   if (req.method !== "POST") {
     res.statusCode = 405;
     res.end("Method Not Allowed");
