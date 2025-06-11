@@ -36,6 +36,30 @@ const __dirname = path.dirname(__filename);
 const typeDefs = mergeTypeDefs(loadFilesSync(path.join(__dirname, "./schema/*.graphql")));
 const baseSchema = makeExecutableSchema({ typeDefs });
 
+// Minimal HTML that loads GraphQL Playground from a CDN.  Browsers hitting the
+// server via GET receive this page, allowing manual exploration of the mocked
+// schema.  The playground sends requests back to the same /graphql endpoint used
+// by API clients.
+const playgroundHtml = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GraphQL Playground</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/graphql-playground-react@1.7.42/build/static/css/index.css" />
+    <link rel="shortcut icon" href="https://cdn.jsdelivr.net/npm/graphql-playground-react@1.7.42/build/favicon.png" />
+    <script src="https://cdn.jsdelivr.net/npm/graphql-playground-react@1.7.42/build/static/js/middleware.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      window.addEventListener('load', function () {
+        GraphQLPlayground.init(document.getElementById('root'), { endpoint: '/graphql' });
+      });
+    </script>
+  </body>
+</html>`;
+
 // Scan the local mocks directory to discover which types/fields have a `0.ts`
 // mock variant. We use this information so that missing entries in config
 // automatically fall back to variant 0.
@@ -270,7 +294,17 @@ const applyDefaultMocks = (config: Config): Config => {
 // parsed and combined with any `mock_config` cookie. The resulting config is
 // used to load mock modules and build the executable schema on the fly.
 const server = createServer(async (req, res) => {
-  // Enforce POST to keep things simple.
+  // Browsers often issue a GET request when visiting the server directly. In
+  // that case we serve GraphQL Playground so developers can experiment with the
+  // mock API interactively.
+  if (req.method === "GET") {
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "text/html");
+    res.end(playgroundHtml);
+    return;
+  }
+
+  // Enforce POST for actual GraphQL queries to keep the implementation simple.
   if (req.method !== "POST") {
     res.statusCode = 405;
     res.end("Method Not Allowed");

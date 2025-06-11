@@ -23,6 +23,9 @@ npm start
 
 The server listens on **http://localhost:44361/graphql**.
 
+Open **http://localhost:44361/** in your browser to access GraphQL Playground
+for interactive testing.
+
 ## Project layout
 
 ```
