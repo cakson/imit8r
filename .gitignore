@@ -134,3 +134,10 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Local schema and mocks (ignored)
+schema/*
+!schema/.gitkeep
+mocks/*
+!mocks/.gitkeep
+config/config.yml
