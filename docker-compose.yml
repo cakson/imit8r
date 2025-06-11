@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  imit8r:
+    build: .
+    ports:
+      - "44361:44361"
+    volumes:
+      - ./schema:/usr/src/app/schema
+      - ./mocks:/usr/src/app/mocks
+      - ./config:/usr/src/app/config
+      - ./example:/usr/src/app/example
