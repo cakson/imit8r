@@ -10,14 +10,20 @@
       flex: 1;
       margin-right: 10px;
       max-height: 400px;
-      overflow: auto;
+      overflow-y: auto;
+      overflow-x: auto;
+      min-width: 280px;
     }
-    #jsonContainer { flex: 1; }
+    #jsonContainer {
+      flex: 1;
+      min-width: 280px;
+    }
     #jsonOutput {
       white-space: pre-wrap;
       background: #f0f0f0;
       padding: 8px;
-      overflow: auto;
+      overflow-y: auto;
+      overflow-x: auto;
       max-height: 400px;
       border: 1px solid #ccc;
     }
