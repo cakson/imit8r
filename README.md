@@ -57,6 +57,10 @@ directories so you can edit files locally without rebuilding the image:
 docker compose up
 ```
 
+`config/config.yml` is intentionally listed in `.dockerignore` so your local
+configuration isn't baked into the image. The compose file mounts this directory
+at runtime, letting you tweak mocks and settings without rebuilding.
+
 ## Project layout
 
 ```

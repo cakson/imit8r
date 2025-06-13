@@ -6,7 +6,8 @@ WORKDIR /usr/src/app
 
 # Install app dependencies
 COPY package*.json ./
-RUN npm install --production
+# Install all dependencies including dev ones so the `tsx` runtime is available
+RUN npm install
 
 # Bundle app source
 COPY . .
