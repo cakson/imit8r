@@ -12,7 +12,7 @@ RUN npm install --production
 COPY . .
 
 # Expose the port the server listens on
-EXPOSE 44361
+EXPOSE 4001
 
 # Start the server
 CMD ["npm", "start"]

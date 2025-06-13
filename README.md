@@ -27,7 +27,7 @@ cp config/config.example.yml config/config.yml
 npm start
 ```
 
-The server listens on **http://localhost:44361/graphql**.
+The server listens on **http://localhost:4001/graphql**.
 
 Open this URL in your browser to access the GraphQL Playground powered by Apollo
 Server. The playground allows you to explore the schema and experiment with
@@ -45,7 +45,7 @@ A `Dockerfile` and `docker-compose.yml` are provided for local development.
 
 ```bash
 docker build -t imit8r .
-docker run -p 44361:44361 imit8r
+docker run -p 4001:4001 imit8r
 ```
 
 ### Using docker compose
