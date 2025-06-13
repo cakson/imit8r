@@ -393,7 +393,8 @@ const server = createServer(async (req, res) => {
   res.end(JSON.stringify(result));
 });
 
-const PORT = 44361;
+// Listen on a fixed port so the README and Docker setup stay in sync.
+const PORT = 4001;
 server.listen(PORT, () => {
   // eslint-disable-next-line no-console -- helpful during development
   console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);

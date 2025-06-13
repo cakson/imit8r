@@ -27,7 +27,7 @@ cp config/config.example.yml config/config.yml
 npm start
 ```
 
-The server listens on **http://localhost:44361/graphql**.
+The server listens on **http://localhost:4001/graphql**.
 
 Open this URL in your browser to access the GraphQL Playground powered by Apollo
 Server. The playground allows you to explore the schema and experiment with
@@ -36,6 +36,30 @@ queries against the mock API.
 The playground is configured to send cookies with each request so the
 `mock_config` cookie set by the Chrome extension is respected when running
 queries.
+
+## Running with Docker
+
+A `Dockerfile` and `docker-compose.yml` are provided for local development.
+
+### Build and run
+
+```bash
+docker build -t imit8r .
+docker run -p 4001:4001 imit8r
+```
+
+### Using docker compose
+
+The compose setup mounts the `schema`, `mocks`, `config` and `example`
+directories so you can edit files locally without rebuilding the image:
+
+```bash
+docker compose up
+```
+
+`config/config.yml` is intentionally listed in `.dockerignore` so your local
+configuration isn't baked into the image. The compose file mounts this directory
+at runtime, letting you tweak mocks and settings without rebuilding.
 
 ## Project layout
 

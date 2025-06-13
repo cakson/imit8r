@@ -1,0 +1,10 @@
+services:
+  imit8r:
+    build: .
+    ports:
+      - "4001:4001"
+    volumes:
+      - ./schema:/usr/src/app/schema
+      - ./mocks:/usr/src/app/mocks
+      - ./config:/usr/src/app/config
+      - ./example:/usr/src/app/example
