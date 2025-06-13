@@ -4,7 +4,7 @@ import { makeExecutableSchema } from "@graphql-tools/schema";
 import { addMocksToSchema } from "@graphql-tools/mock";
 import { loadFilesSync } from "@graphql-tools/load-files";
 import { mergeTypeDefs } from "@graphql-tools/merge";
-import { renderPlaygroundPage } from "@apollographql/graphql-playground-html";
+import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
@@ -34,6 +34,7 @@ interface MockConfig {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const require = createRequire(import.meta.url);
 
 // Load the YAML configuration from `config/config.yml`. If the file does not
 // exist we provide a clear error so new users know how to create it based on the
@@ -67,15 +68,69 @@ const mocksDir = path.join(
 const typeDefs = mergeTypeDefs(loadFilesSync(path.join(schemaDir, "*.graphql")));
 const baseSchema = makeExecutableSchema({ typeDefs });
 
-// Generate the GraphQL Playground HTML once on startup using the helper from
-// Apollo Server. The resulting page is served on GET requests so you can easily
-// explore the schema and test queries in the browser.
-const playgroundHtml = renderPlaygroundPage({
-  endpoint: "/graphql",
-  // Include cookies like `mock_config` in playground requests so variant
-  // selections made by the Chrome extension reach the server.
-  settings: { "request.credentials": "include" },
-});
+// ---------------------------------------------------------------------------
+// Build the GraphiQL UI once on startup.  Rather than relying on a CDN we read
+// the minified assets directly from `node_modules` so the server works offline.
+// The resulting HTML is served for GET requests to `/graphql` so developers can
+// explore and test the mock API in their browser.  We enable the built-in dark
+// theme by adding the `graphiql-dark` class to the body element.
+// ---------------------------------------------------------------------------
+const graphiqlHtml = (() => {
+  // Locate the bundled files for React, ReactDOM and GraphiQL. Using
+  // `require.resolve` keeps the paths accurate regardless of where the server
+  // is run from.
+  const reactPath = path.join(
+    path.dirname(require.resolve("react/package.json")),
+    "umd/react.production.min.js"
+  );
+  const domPath = path.join(
+    path.dirname(require.resolve("react-dom/package.json")),
+    "umd/react-dom.production.min.js"
+  );
+  const graphiqlJsPath = path.join(
+    path.dirname(require.resolve("graphiql/package.json")),
+    "graphiql.min.js"
+  );
+  const graphiqlCssPath = path.join(
+    path.dirname(require.resolve("graphiql/package.json")),
+    "graphiql.min.css"
+  );
+
+  // Read the asset contents into strings so we can inline them.  Inlining keeps
+  // the HTML self contained and avoids additional HTTP requests.
+  const reactJs = fs.readFileSync(reactPath, "utf8");
+  const domJs = fs.readFileSync(domPath, "utf8");
+  const graphiqlJs = fs.readFileSync(graphiqlJsPath, "utf8");
+  const graphiqlCss = fs.readFileSync(graphiqlCssPath, "utf8");
+
+  // The fetcher forwards operations back to this server so cookie based mock
+  // configuration works as expected.
+  return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>${graphiqlCss}</style>
+    <style>body { margin: 0; height: 100vh; }</style>
+  </head>
+  <body class="graphiql-dark">
+    <div id="graphiql" style="height: 100vh;"></div>
+    <script>${reactJs}</script>
+    <script>${domJs}</script>
+    <script>${graphiqlJs}</script>
+    <script>
+      const fetcher = params =>
+        fetch('/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(params),
+          credentials: 'include',
+        }).then(r => r.json());
+      const root = ReactDOM.createRoot(document.getElementById('graphiql'));
+      root.render(React.createElement(GraphiQL, { fetcher }));
+    </script>
+  </body>
+</html>`;
+})();
 
 // Scan the local mocks directory to discover which types/fields have a `0.ts`
 // mock variant. We use this information so that missing entries in config
@@ -309,10 +364,10 @@ const applyDefaultMocks = (config: Config): Config => {
 // parsed and combined with any `mock_config` cookie. The resulting config is
 // used to load mock modules and build the executable schema on the fly.
 const server = createServer(async (req, res) => {
-  // Serve the GraphQL Playground when a browser requests `/graphql` via GET.
+  // Serve the GraphiQL interface when a browser requests `/graphql` via GET.
   if (req.method === "GET") {
     res.setHeader("Content-Type", "text/html");
-    res.end(playgroundHtml);
+    res.end(graphiqlHtml);
     return;
   }
 

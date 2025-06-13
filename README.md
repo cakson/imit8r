@@ -29,13 +29,10 @@ npm start
 
 The server listens on **http://localhost:4001/graphql**.
 
-Open this URL in your browser to access the GraphQL Playground powered by Apollo
-Server. The playground allows you to explore the schema and experiment with
-queries against the mock API.
-
-The playground is configured to send cookies with each request so the
-`mock_config` cookie set by the Chrome extension is respected when running
-queries.
+Open this URL in your browser to access **GraphiQL**. The interface runs in dark
+mode and lets you explore the schema or run queries against the mock API. It is
+configured to send cookies with each request so the `mock_config` cookie set by
+the Chrome extension is respected.
 
 ## Running with Docker
 
