@@ -70,12 +70,12 @@ const mocksDir = path.join(
 if (!defaultConfig.use_example) {
   if (!fs.existsSync(schemaDir)) {
     throw new Error(
-      "Missing ./schema directory. Create it or run `npm run link-mocks` with APP_MOCK_ROOT pointing to your application."
+      "Missing ./schema directory. Create it or run `npm run link` with APP_MOCK_ROOT pointing to your application."
     );
   }
   if (!fs.existsSync(mocksDir)) {
     throw new Error(
-      "Missing ./mocks directory. Create it or run `npm run link-mocks` with APP_MOCK_ROOT pointing to your application."
+      "Missing ./mocks directory. Create it or run `npm run link` with APP_MOCK_ROOT pointing to your application."
     );
   }
 }

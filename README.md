@@ -73,10 +73,10 @@ Set `APP_MOCK_ROOT` to the path containing the application's `mocks` and
 `schema` directories, then run:
 
 ```bash
-npm run link-mocks
+npm run link
 ```
 
-The `link-mocks` script creates the target directories if they do not already
+The `link` script creates the target directories if they do not already
 exist and then writes symlinks named `mocks` and `schema` pointing to them. The
 links themselves are ignored by Git so switching applications only requires
 updating `APP_MOCK_ROOT` and rerunning the command.
@@ -99,14 +99,14 @@ updating `APP_MOCK_ROOT` and rerunning the command.
 When `use_example` is enabled in `config.yml` the server loads the sample schema
 from `example/schema`. Set `use_example: false` to instead load your own schema
 files from the root level `schema/` directory. If this directory does not exist
-run `npm run link-mocks` or create it manually. All `*.graphql` files found in
+run `npm run link` or create it manually. All `*.graphql` files found in
 the selected directory are merged on start.
 
 ### Writing mocks
 
 Mock files are loaded from `example/mocks` when `use_example` is enabled.
 With `use_example: false` the server instead loads mocks from the root level
-`mocks/` directory. If this directory does not exist run `npm run link-mocks`
+`mocks/` directory. If this directory does not exist run `npm run link`
 or create it manually. Mocks live in `mocks/<Type>/<field>/<variant>.ts` for
 field level mocks or in `mocks/<Type>/<variant>.ts` for type level mocks. Each
 file should **export a default value or function** returning the value.
@@ -164,7 +164,7 @@ mocks:
 - `mocks` – default variant for each type or field.  Omit entries to fall back to `0.ts` when available.
 - `use_example` – load the bundled sample schema and mocks instead of local files.
 - When set to `false` you must create `./schema` and `./mocks` in the repository
-  root or run `npm run link-mocks` to create symlinks to another project.
+  root or run `npm run link` to create symlinks to another project.
 
 Restart the server after changing `config.yml`.
 

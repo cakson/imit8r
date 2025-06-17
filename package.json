@@ -5,7 +5,7 @@
   "main": "server.ts",
   "scripts": {
     "start": "tsx server.ts",
-    "link-mocks": "./link.sh"
+    "link": "./link.sh"
   },
   "dependencies": {
     "@apollo/server": "^4.12.2",
