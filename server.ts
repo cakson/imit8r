@@ -64,6 +64,22 @@ const mocksDir = path.join(
   defaultConfig.use_example ? "./example/mocks" : "./mocks"
 );
 
+// When loading custom data (`use_example: false`) the developer must supply the
+// `mocks/` and `schema/` directories. If they are missing we fail fast with a
+// clear error describing how to create them or link to another repository.
+if (!defaultConfig.use_example) {
+  if (!fs.existsSync(schemaDir)) {
+    throw new Error(
+      "Missing ./schema directory. Create it or run `npm run link` with APP_MOCK_ROOT pointing to your application."
+    );
+  }
+  if (!fs.existsSync(mocksDir)) {
+    throw new Error(
+      "Missing ./mocks directory. Create it or run `npm run link` with APP_MOCK_ROOT pointing to your application."
+    );
+  }
+}
+
 const typeDefs = mergeTypeDefs(loadFilesSync(path.join(schemaDir, "*.graphql")));
 const baseSchema = makeExecutableSchema({ typeDefs });
 

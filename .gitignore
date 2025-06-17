@@ -136,8 +136,6 @@ dist
 .pnp.*
 
 # Local schema and mocks (ignored)
-schema/*
-!schema/.gitkeep
-mocks/*
-!mocks/.gitkeep
+schema
+mocks
 config/config.yml
