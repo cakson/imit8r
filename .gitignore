@@ -137,7 +137,7 @@ dist
 
 # Local schema and mocks (ignored)
 schema/*
-!schema/.gitkeep
+!schema/.gitignore
 mocks/*
-!mocks/.gitkeep
+!mocks/.gitignore
 config/config.yml

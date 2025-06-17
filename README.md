@@ -61,6 +61,23 @@ docker compose up
 configuration isn't baked into the image. The compose file mounts this directory
 at runtime, letting you tweak mocks and settings without rebuilding.
 
+## Linking mock data from another repository
+
+Sometimes the real application stores its own `mocks/` and `schema/` folders.
+To keep this repository clean you can create symbolic links to those folders.
+
+Set `APP_MOCK_ROOT` to the path containing the application's `mocks` and
+`schema` directories, then run:
+
+```bash
+npm run link-mocks
+```
+
+The `link-mocks` script verifies the targets exist, removes any placeholders in
+this repo and creates symlinks named `mocks` and `schema` pointing to the real
+locations. These links are ignored by Git so switching applications only
+requires updating `APP_MOCK_ROOT` and rerunning the command.
+
 ## Project layout
 
 ```
