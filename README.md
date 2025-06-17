@@ -1,236 +1,234 @@
 # Imit8r
 
-Imit8r is a small GraphQL server that serves your schema with mock responses.  Mocks can be swapped on the fly and any field can be forwarded to a real API.  This lets you quickly imitate many server behaviours during development without touching your client code.
+**Imit8r** is a lightweight GraphQL server that **mocks your schema on demand**.  
+Swap mock variants at request-time, forward individual fields to a live API, and prototype complex client flows without touching application code.
 
-## Features
+---
 
-- Multiple mock variants per field or type
-- Request time selection of variants using a cookie
-- Optional passthrough of fields to a real GraphQL server
-- Simple file based configuration and schema loading
+## ✨ Key Features
 
-## Installation
+| Capability                    | Details                                                                                           |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------|
+| **Zero-config auto-mocking**  | Uses **[@graphql-tools/mock]** to generate realistic fake data for **every field** when no custom mock exists. |
+| **Multiple mock variants**    | Provide any number of per-field or per-type variants (`0.ts`, `1.ts`, …).                         |
+| **Per-request switching**     | Select variants via a `mock_config` cookie—no server restart required.                             |
+| **Passthroughs** (Experimental)              | Use `-1` to delegate specific fields to a real GraphQL endpoint.                                   |
+| **File-based setup**          | Plain `.graphql`, `.ts`, and `.yml` files—no databases or custom tooling.                          |
+
+---
+
+## 🚀 Quick Start
+
+By default Imit8r boots with the **bundled samples** in `./example/` (schema **and** mocks).  
+This lets you try the server immediately without creating any project files.
 
 ```bash
+# 1. Install
 npm install
-```
 
-## Running the server
-
-Before starting, copy the provided example configuration:
-
-```bash
+# 2. Copy the default config
 cp config/config.example.yml config/config.yml
-```
 
-```bash
+# 3. Launch
 npm start
 ```
 
-The server listens on **http://localhost:4001/graphql**.
+Open **http://localhost:4001/graphql** to explore the API in Apollo Playground.  
+Cookies are sent automatically, so the `mock_config` cookie works out of the box.
 
-Open this URL in your browser to access the GraphQL Playground powered by Apollo
-Server. The playground allows you to explore the schema and experiment with
-queries against the mock API.
+> Use a watcher such as `nodemon` for live-reload if desired.
 
-The playground is configured to send cookies with each request so the
-`mock_config` cookie set by the Chrome extension is respected when running
-queries.
+---
 
-## Running with Docker
+## 🐳 Running with Docker
 
-A `Dockerfile` and `docker-compose.yml` are provided for local development.
+A `Dockerfile` and `docker-compose.yml` are included for local development.
 
-### Build and run
+### Build & run
 
 ```bash
 docker build -t imit8r .
 docker run -p 4001:4001 imit8r
 ```
 
-### Using docker compose
-
-The compose setup mounts the `schema`, `mocks`, `config` and `example`
-directories so you can edit files locally without rebuilding the image:
+### docker compose (live editing)
 
 ```bash
-docker compose up
+docker compose up -d
 ```
 
-`config/config.yml` is intentionally listed in `.dockerignore` so your local
-configuration isn't baked into the image. The compose file mounts this directory
-at runtime, letting you tweak mocks and settings without rebuilding.
+The compose file **mounts** `schema/`, `mocks/`, `config/`, and `example/`, so you can edit files without rebuilding the image.
 
-## Linking mock data from another repository
+> **Important:** Imit8r loads schema and mocks **at startup**.  
+> After adding or changing variants, schema, or configuration you **still need to restart** the container (`docker compose restart`) to see the changes. The mounts merely skip the rebuild step.
 
-Sometimes the real application stores its own `mocks/` and `schema/` folders.
-To keep this repository clean you can create symbolic links to those folders.
-This repository does **not** include `mocks/` or `schema/` at all. They are
-gitignored so running the link script creates them as symlinks without leaving
-extra files in the history.
+---
 
-Set `APP_MOCK_ROOT` to the path containing the application's `mocks` and
-`schema` directories, then run:
+## 🔗 Linking mocks from another repository
+
+If your application already owns `mocks/` and `schema/`, point Imit8r at them with symlinks:
 
 ```bash
+export APP_MOCK_ROOT=/path/to/your/app
 npm run link
 ```
 
-The `link` script creates the target directories if they do not already
-exist and then writes symlinks named `mocks` and `schema` pointing to them. The
-links themselves are ignored by Git so switching applications only requires
-updating `APP_MOCK_ROOT` and rerunning the command.
+The script creates or updates `mocks → $APP_MOCK_ROOT/mocks` and `schema → $APP_MOCK_ROOT/schema`.  
+Both links are **git-ignored**, so switching projects is as simple as changing `APP_MOCK_ROOT` and rerunning the command.
 
-## Project layout
+---
+
+## 🗂 Project Layout
 
 ```
 .
-├── example/
-│   ├── schema/    # Sample schema files
-│   └── mocks/     # Sample mock implementations
-├── schema/        # Your schema (symlink or directory, gitignored)
-├── mocks/         # Your mocks (symlink or directory, gitignored)
-├── config/        # Configuration
-└── server.ts      # Server implementation
+├── example/         Sample schema & mocks (toggle with use_example)
+│   ├── schema/
+│   └── mocks/
+├── schema/          Your schema (symlink or dir, git-ignored)
+├── mocks/           Your mocks  (symlink or dir, git-ignored)
+├── config/          YAML configuration
+└── server.ts        Imit8r implementation
 ```
 
-### Schema
+---
 
-When `use_example` is enabled in `config.yml` the server loads the sample schema
-from `example/schema`. Set `use_example: false` to instead load your own schema
-files from the root level `schema/` directory. If this directory does not exist
-run `npm run link` or create it manually. All `*.graphql` files found in
-the selected directory are merged on start.
+## 🔧 Customization
 
-### Writing mocks
-
-Mock files are loaded from `example/mocks` when `use_example` is enabled.
-With `use_example: false` the server instead loads mocks from the root level
-`mocks/` directory. If this directory does not exist run `npm run link`
-or create it manually. Mocks live in `mocks/<Type>/<field>/<variant>.ts` for
-field level mocks or in `mocks/<Type>/<variant>.ts` for type level mocks. Each
-file should **export a default value or function** returning the value.
-
-Example field mock:
-
-```ts
-// mocks/Mutation/createPost/0.ts
-export default () => ({
-  id: "101",
-  title: "Created post",
-  content: "New post content",
-});
-```
-
-Example query mock:
-
-```ts
-// mocks/Query/user/0.ts - found user
-export default () => ({
-  id: "2",
-  name: "Bob",
-  role: "USER",
-  posts: []
-});
-
-// mocks/Query/user/1.ts - not found variant throws an error
-import { GraphQLError } from "graphql";
-export default () => {
-  throw new GraphQLError("User not found");
-};
-```
-
-Variant numbers begin at `0`.  A file named `0.ts` is treated as the default when no variant is specified.
-
-Mocks are optional.  If a field or type has no mock file the server automatically
-generates values based on the GraphQL schema.  For example `Query.posts` in the
-sample schema works without any mock file because the `Post` and `User` type
-level mocks provide shape information for auto generated data.
-
-### Configuration
-
-Copy `config/config.example.yml` to `config/config.yml` and edit the file to select the default mock variants and specify the downstream GraphQL API used for passthroughs.
+The default configuration uses the bundled examples:
 
 ```yaml
 use_example: true
+```
+
+To plug in **your own schema and mocks**:
+
+1. **Toggle the flag**
+
+   ```yaml
+   use_example: false
+   ```
+
+2. **Create folders** (both are in `.gitignore`):
+
+   ```bash
+   mkdir schema mocks
+   ```
+
+   – or –
+
+   **Symlink** to an existing project:
+
+   ```bash
+   export APP_MOCK_ROOT=/path/to/your/app   # contains mocks/ and schema/
+   npm run link
+   ```
+
+3. **Add/merge GraphQL files**
+
+    * All `*.graphql` files inside `schema/` (or the symlink) are merged at startup.
+    * Place mock files inside `mocks/` following the structure described below.
+
+4. **Restart the server** (or container) to load the new assets.
+
+---
+
+## 🧪 Writing & Overriding Mocks
+
+> **No mocks? No problem!**  
+> Imit8r auto-mocks every field using **[@graphql-tools/mock]**, so you get realistic data out of the box.  
+> Add mock files **only** when you need deterministic values or error cases.
+
+* **Field mock:** `mocks/<Type>/<field>/<variant>.ts`
+* **Type  mock:** `mocks/<Type>/<variant>.ts`
+
+```ts
+// mocks/Query/user/0.ts   – success (default)
+export default () => ({ id: "1", name: "Alice" });
+
+// mocks/Query/user/1.ts   – not-found (throws)
+import { GraphQLError } from "graphql";
+export default () => { throw new GraphQLError("User not found"); };
+```
+
+* Variant numbers start at **0**; `0` is used when no variant is specified.
+* Missing mocks fall back to the **auto-mocked** data generated from the schema.
+
+---
+
+## ⚙️ Configuration (`config/config.yml`)
+
+```yaml
+use_example: false                 # load project files
 downstream_url: "http://localhost:4000/graphql"
 
 mocks:
   Mutation:
-    login: 0
+    login: 0                       # default variant
 ```
 
-- `downstream_url` – real GraphQL endpoint used when a field is set to `-1`.
-- `mocks` – default variant for each type or field.  Omit entries to fall back to `0.ts` when available.
-- `use_example` – load the bundled sample schema and mocks instead of local files.
-- When set to `false` you must create `./schema` and `./mocks` in the repository
-  root or run `npm run link` to create symlinks to another project.
+| Key               | Description                                                      |
+|-------------------|------------------------------------------------------------------|
+| `downstream_url`  | Real GraphQL endpoint for passthroughs (`-1`).                   |
+| `mocks`           | Default variant per type/field (omit to use `0`).                |
+| `use_example`     | `true` = sample schema/mocks, `false` = project files/symlinks.  |
 
-Restart the server after changing `config.yml`.
+Restart the server after editing the file.
 
-### Selecting variants per request
+---
 
-Clients can override the configuration without restarting the server by sending a `mock_config` cookie.  The format mirrors the `mocks` section from the configuration file.
+## 🍪 Per-Request Variant Selection
+
+Send a **`mock_config` cookie** whose JSON mirrors the `mocks` section:
 
 ```
 mock_config={"Mutation":{"login":1},"Query":{"posts":-1}}
 ```
 
-Numbers select a variant in the `mocks` directory.  Using `-1` forwards that field to the real server specified by `downstream_url`.
+* Positive numbers pick a variant file.
+* `-1` forwards the field to `downstream_url`.
 
-For example the `login` mutation provides two variants:
+---
 
-```ts
-// mocks/Mutation/login/0.ts - success
-export default () => ({
-  token: "abcd1234",
-  user: { id: "1", name: "Alice", role: "ADMIN" }
-});
+## 🧩 Chrome Extension
 
-// mocks/Mutation/login/1.ts - error variant throws an error
-import { GraphQLError } from "graphql";
-export default () => {
-  throw new GraphQLError("Invalid credentials");
-};
-```
+A helper extension lives in **chrome-extension/**.
 
-You can request the error variant by sending:
+### Installation
 
-```
-mock_config={"Mutation":{"login":1}}
-```
+1. Open **`chrome://extensions`** in Chrome.
+2. Toggle **Developer mode** (top-right).
+3. Click **Load unpacked** and select the `chrome-extension/` folder.
 
-Query variants work the same way. The following cookie picks the "not found" variant for `Query.user`:
+### Usage
 
-```
-mock_config={"Query":{"user":1}}
-```
+1. Upload your schema (for auto-completion).
+2. Pick variant numbers in the form.
+3. Click **Apply** – the extension sets the `mock_config` cookie for the active tab.
 
-### Chrome extension
+The popup stores your last schema and selections, and shows a prettified JSON preview for copy-pasting. Variants left at `0` are omitted from the JSON.
 
-To simplify editing the `mock_config` cookie a Chrome extension lives in
-`chrome-extension/`. Load this folder as an unpacked extension, upload
-your GraphQL schema, adjust variant numbers in the popup and press
-**Apply**. The extension sets the cookie for the active tab based on the
-form values. Your last uploaded schema and variant selections are stored
-so reopening the popup restores them automatically.
-The popup now displays the current configuration as beautified JSON next
-to the form. Use the **Copy** button to copy the JSON to your clipboard
-for sharing or inspection.
-Variants left at `0` are omitted from the JSON preview since `0` is treated as the default.
-The form and JSON preview each scroll independently and horizontally if needed so
-the **Apply** button stays visible above them.
+---
 
-### Passthrough example
+## 🔄 Passthrough Example
 
-To fetch data for `Query.user` from the real API while using local mocks for everything else:
+Use live data for `Query.user`, mocks for everything else:
 
 ```
 mock_config={"Query":{"user":-1}}
 ```
 
-The rest of the query is resolved by the selected mocks.
+---
 
-## Development notes
+## 🛠 Development Notes
 
-The server is written in TypeScript and executed via `tsx`.  After modifying the schema or mocks you will need to restart the server.  For contribution guidelines see [AGENTS.md](./AGENTS.md).
+* Written in **TypeScript** and executed via **tsx**.
+* Restart after changing schema or mocks (or add a watcher).
+
+---
+
+## 📄 License
+
+MIT © 2025 Imit8r Contributors
+
+[@graphql-tools/mock]: https://www.graphql-tools.com/docs/mocking/
