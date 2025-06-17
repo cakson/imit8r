@@ -136,6 +136,6 @@ dist
 .pnp.*
 
 # Local schema and mocks (ignored)
-schema/
-mocks/
+schema
+mocks
 config/config.yml
