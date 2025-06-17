@@ -4,7 +4,6 @@ import { makeExecutableSchema } from "@graphql-tools/schema";
 import { addMocksToSchema } from "@graphql-tools/mock";
 import { loadFilesSync } from "@graphql-tools/load-files";
 import { mergeTypeDefs } from "@graphql-tools/merge";
-import { renderPlaygroundPage } from "@apollographql/graphql-playground-html";
 import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
@@ -83,15 +82,36 @@ if (!defaultConfig.use_example) {
 const typeDefs = mergeTypeDefs(loadFilesSync(path.join(schemaDir, "*.graphql")));
 const baseSchema = makeExecutableSchema({ typeDefs });
 
-// Generate the GraphQL Playground HTML once on startup using the helper from
-// Apollo Server. The resulting page is served on GET requests so you can easily
-// explore the schema and test queries in the browser.
-const playgroundHtml = renderPlaygroundPage({
-  endpoint: "/graphql",
-  // Include cookies like `mock_config` in playground requests so variant
-  // selections made by the Chrome extension reach the server.
-  settings: { "request.credentials": "include" },
-});
+// Generate the Apollo Sandbox HTML once on startup. The sandbox script is
+// loaded from Apollo's CDN and embedded into the returned page so browsers can
+// explore and run queries against this server. The configuration mirrors the
+// old Playground behavior by automatically including cookies such as
+// `mock_config` with every request.
+const sandboxHtml = `<!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="utf-8" />
+      <title>Apollo Sandbox</title>
+      <style>
+        html, body, #sandbox {
+          height: 100%;
+          margin: 0;
+          width: 100%;
+        }
+      </style>
+      <script src="https://embeddable-sandbox.cdn.apollographql.com/v2/embeddable-sandbox.umd.production.min.js"></script>
+    </head>
+    <body>
+      <div id="sandbox"></div>
+      <script>
+        new window.EmbeddedSandbox({
+          target: '#sandbox',
+          initialEndpoint: '/graphql',
+          includeCookies: true,
+        });
+      </script>
+    </body>
+  </html>`;
 
 // Scan the local mocks directory to discover which types/fields have a `0.ts`
 // mock variant. We use this information so that missing entries in config
@@ -325,10 +345,10 @@ const applyDefaultMocks = (config: Config): Config => {
 // parsed and combined with any `mock_config` cookie. The resulting config is
 // used to load mock modules and build the executable schema on the fly.
 const server = createServer(async (req, res) => {
-  // Serve the GraphQL Playground when a browser requests `/graphql` via GET.
+  // Serve the Apollo Sandbox when a browser requests `/graphql` via GET.
   if (req.method === "GET") {
     res.setHeader("Content-Type", "text/html");
-    res.end(playgroundHtml);
+    res.end(sandboxHtml);
     return;
   }
 

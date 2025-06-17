@@ -33,7 +33,7 @@ cp config/config.example.yml config/config.yml
 npm start
 ```
 
-Open **http://localhost:4001/graphql** to explore the API in Apollo Playground.  
+Open **http://localhost:4001/graphql** to explore the API in **Apollo Sandbox**.
 Cookies are sent automatically, so the `mock_config` cookie works out of the box.
 
 > Use a watcher such as `nodemon` for live-reload if desired.
