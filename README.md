@@ -65,9 +65,9 @@ at runtime, letting you tweak mocks and settings without rebuilding.
 
 Sometimes the real application stores its own `mocks/` and `schema/` folders.
 To keep this repository clean you can create symbolic links to those folders.
-The `mocks/` and `schema/` directories in this repo are committed only with a
-`.gitignore` file so they stay empty. Running the link script removes anything
-inside before creating the symlinks.
+This repository does **not** include `mocks/` or `schema/` at all. They are
+gitignored so running the link script creates them as symlinks without leaving
+extra files in the history.
 
 Set `APP_MOCK_ROOT` to the path containing the application's `mocks` and
 `schema` directories, then run:
@@ -76,10 +76,10 @@ Set `APP_MOCK_ROOT` to the path containing the application's `mocks` and
 npm run link-mocks
 ```
 
-The `link-mocks` script verifies the targets exist, removes any placeholders in
-this repo and creates symlinks named `mocks` and `schema` pointing to the real
-locations. These links are ignored by Git so switching applications only
-requires updating `APP_MOCK_ROOT` and rerunning the command.
+The `link-mocks` script creates the target directories if they do not already
+exist and then writes symlinks named `mocks` and `schema` pointing to them. The
+links themselves are ignored by Git so switching applications only requires
+updating `APP_MOCK_ROOT` and rerunning the command.
 
 ## Project layout
 
@@ -88,8 +88,8 @@ requires updating `APP_MOCK_ROOT` and rerunning the command.
 ├── example/
 │   ├── schema/    # Sample schema files
 │   └── mocks/     # Sample mock implementations
-├── schema/        # Your schema (gitignored)
-├── mocks/         # Your mocks (gitignored)
+├── schema/        # Your schema (symlink or directory, gitignored)
+├── mocks/         # Your mocks (symlink or directory, gitignored)
 ├── config/        # Configuration
 └── server.ts      # Server implementation
 ```
@@ -98,16 +98,18 @@ requires updating `APP_MOCK_ROOT` and rerunning the command.
 
 When `use_example` is enabled in `config.yml` the server loads the sample schema
 from `example/schema`. Set `use_example: false` to instead load your own schema
-files from the root level `schema/` directory. All `*.graphql` files found in
+files from the root level `schema/` directory. If this directory does not exist
+run `npm run link-mocks` or create it manually. All `*.graphql` files found in
 the selected directory are merged on start.
 
 ### Writing mocks
 
 Mock files are loaded from `example/mocks` when `use_example` is enabled.
 With `use_example: false` the server instead loads mocks from the root level
-`mocks/` directory. Mocks live in `mocks/<Type>/<field>/<variant>.ts` for field
-level mocks or in `mocks/<Type>/<variant>.ts` for type level mocks. Each file
-should **export a default value or function** returning the value.
+`mocks/` directory. If this directory does not exist run `npm run link-mocks`
+or create it manually. Mocks live in `mocks/<Type>/<field>/<variant>.ts` for
+field level mocks or in `mocks/<Type>/<variant>.ts` for type level mocks. Each
+file should **export a default value or function** returning the value.
 
 Example field mock:
 
@@ -161,6 +163,8 @@ mocks:
 - `downstream_url` – real GraphQL endpoint used when a field is set to `-1`.
 - `mocks` – default variant for each type or field.  Omit entries to fall back to `0.ts` when available.
 - `use_example` – load the bundled sample schema and mocks instead of local files.
+- When set to `false` you must create `./schema` and `./mocks` in the repository
+  root or run `npm run link-mocks` to create symlinks to another project.
 
 Restart the server after changing `config.yml`.
 

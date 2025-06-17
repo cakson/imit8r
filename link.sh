@@ -13,9 +13,12 @@ for dir in mocks schema; do
   target="$APP_MOCK_ROOT/$dir"   # where the real files live
   link="./$dir"                  # link to create in this repo
 
-  # Basic sanity checks
-  [ -d "$target" ] \
-    || { printf '❌  Expected directory not found: %s\n' "$target" >&2; exit 1; }
+  # Create the target if it does not already exist so new apps can link
+  # without manually creating empty directories.
+  if [ ! -d "$target" ]; then
+    mkdir -p "$target"
+    printf '📁  Created missing directory: %s\n' "$target"
+  fi
 
   # Remove any pre-existing file/dir/link with the same name
   [ -e "$link" ] && rm -rf "$link"
