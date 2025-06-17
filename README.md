@@ -224,7 +224,6 @@ mock_config={"Query":{"user":-1}}
 
 * Written in **TypeScript** and executed via **tsx**.
 * Restart after changing schema or mocks (or add a watcher).
-* Contribution guidelines live in [AGENTS.md](./AGENTS.md).
 
 ---
 
