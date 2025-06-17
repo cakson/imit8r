@@ -65,6 +65,9 @@ at runtime, letting you tweak mocks and settings without rebuilding.
 
 Sometimes the real application stores its own `mocks/` and `schema/` folders.
 To keep this repository clean you can create symbolic links to those folders.
+The `mocks/` and `schema/` directories in this repo are committed only with a
+`.gitignore` file so they stay empty. Running the link script removes anything
+inside before creating the symlinks.
 
 Set `APP_MOCK_ROOT` to the path containing the application's `mocks` and
 `schema` directories, then run:
