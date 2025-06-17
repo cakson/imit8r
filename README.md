@@ -1,236 +1,190 @@
 # Imit8r
 
-Imit8r is a small GraphQL server that serves your schema with mock responses.  Mocks can be swapped on the fly and any field can be forwarded to a real API.  This lets you quickly imitate many server behaviours during development without touching your client code.
+**Imit8r** is a lightweight GraphQL server that **mocks your schema on demand**.  
+Swap mock variants at request-time, forward individual fields to a live API, and prototype complex client flows without touching application code.
 
-## Features
+---
 
-- Multiple mock variants per field or type
-- Request time selection of variants using a cookie
-- Optional passthrough of fields to a real GraphQL server
-- Simple file based configuration and schema loading
+## ✨ Key Features
 
-## Installation
+| Capability | Details |
+| -----------|---------|
+| **Multiple mock variants** | Provide any number of per-field or per-type variants (`0.ts`, `1.ts`, …). |
+| **Per-request switching** | Select variants via a `mock_config` cookie—no server restart required. |
+| **Passthroughs** | Use `-1` to delegate specific fields to a real GraphQL endpoint. |
+| **File-based setup** | Plain `.graphql`, `.ts`, and `.yml` files—no databases or custom tooling. |
+
+---
+
+## 🚀 Quick Start
+
+### 1 · Install dependencies
 
 ```bash
 npm install
 ```
 
-## Running the server
-
-Before starting, copy the provided example configuration:
+### 2 · Create a configuration file
 
 ```bash
 cp config/config.example.yml config/config.yml
 ```
 
+### 3 · Launch the server
+
 ```bash
 npm start
 ```
 
-The server listens on **http://localhost:4001/graphql**.
+Open **http://localhost:4001/graphql** to access Apollo Server’s GraphQL Playground (cookies are sent automatically so variant selection works out of the box).
 
-Open this URL in your browser to access the GraphQL Playground powered by Apollo
-Server. The playground allows you to explore the schema and experiment with
-queries against the mock API.
+> **Node 18 +** is recommended.  
+> The server reloads on restart; use a Nodemon-like tool if you prefer live-reload in development.
 
-The playground is configured to send cookies with each request so the
-`mock_config` cookie set by the Chrome extension is respected when running
-queries.
+---
 
-## Running with Docker
+## 🐳 Running with Docker
 
-A `Dockerfile` and `docker-compose.yml` are provided for local development.
+A `Dockerfile` and `docker-compose.yml` are included for local development.
 
-### Build and run
+### Build & run
 
 ```bash
 docker build -t imit8r .
 docker run -p 4001:4001 imit8r
 ```
 
-### Using docker compose
-
-The compose setup mounts the `schema`, `mocks`, `config` and `example`
-directories so you can edit files locally without rebuilding the image:
+### docker compose (hot-reloading)
 
 ```bash
 docker compose up
 ```
 
-`config/config.yml` is intentionally listed in `.dockerignore` so your local
-configuration isn't baked into the image. The compose file mounts this directory
-at runtime, letting you tweak mocks and settings without rebuilding.
+The compose file mounts `schema/`, `mocks/`, `config/`, and `example/`, so you can edit sources without rebuilding.  
+`config/config.yml` is **.dockerignore-d**; your local secrets never enter the image.
 
-## Linking mock data from another repository
+---
 
-Sometimes the real application stores its own `mocks/` and `schema/` folders.
-To keep this repository clean you can create symbolic links to those folders.
-This repository does **not** include `mocks/` or `schema/` at all. They are
-gitignored so running the link script creates them as symlinks without leaving
-extra files in the history.
+## 🔗 Linking mocks from another repository
 
-Set `APP_MOCK_ROOT` to the path containing the application's `mocks` and
-`schema` directories, then run:
+If your application already owns `mocks/` and `schema/`, point Imit8r at them with symlinks:
 
 ```bash
+export APP_MOCK_ROOT=/path/to/your/app
 npm run link
 ```
 
-The `link` script creates the target directories if they do not already
-exist and then writes symlinks named `mocks` and `schema` pointing to them. The
-links themselves are ignored by Git so switching applications only requires
-updating `APP_MOCK_ROOT` and rerunning the command.
+The script creates or updates `mocks → $APP_MOCK_ROOT/mocks` and `schema → $APP_MOCK_ROOT/schema`.  
+Both links are **git-ignored**, so switching projects is as simple as changing `APP_MOCK_ROOT` and rerunning the command.
 
-## Project layout
+---
+
+## 🗂 Project Layout
 
 ```
 .
-├── example/
-│   ├── schema/    # Sample schema files
-│   └── mocks/     # Sample mock implementations
-├── schema/        # Your schema (symlink or directory, gitignored)
-├── mocks/         # Your mocks (symlink or directory, gitignored)
-├── config/        # Configuration
-└── server.ts      # Server implementation
+├── example/         Sample schema & mocks (toggle with use_example)
+│   ├── schema/
+│   └── mocks/
+├── schema/          Your schema (symlink or dir, git-ignored)
+├── mocks/           Your mocks  (symlink or dir, git-ignored)
+├── config/          YAML configuration
+└── server.ts        Imit8r implementation
 ```
 
-### Schema
+---
 
-When `use_example` is enabled in `config.yml` the server loads the sample schema
-from `example/schema`. Set `use_example: false` to instead load your own schema
-files from the root level `schema/` directory. If this directory does not exist
-run `npm run link` or create it manually. All `*.graphql` files found in
-the selected directory are merged on start.
+## 📜 Schemas
 
-### Writing mocks
+* Set `use_example: true` in **config.yml** to load `example/schema/`.
+* Set `use_example: false` to load **./schema/** instead (create or link it first).
+* All `*.graphql` files in the chosen directory are merged at startup.
 
-Mock files are loaded from `example/mocks` when `use_example` is enabled.
-With `use_example: false` the server instead loads mocks from the root level
-`mocks/` directory. If this directory does not exist run `npm run link`
-or create it manually. Mocks live in `mocks/<Type>/<field>/<variant>.ts` for
-field level mocks or in `mocks/<Type>/<variant>.ts` for type level mocks. Each
-file should **export a default value or function** returning the value.
+---
 
-Example field mock:
+## 🧪 Writing Mocks
+
+* **Field mock:** `mocks/<Type>/<field>/<variant>.ts`
+* **Type  mock:** `mocks/<Type>/<variant>.ts`
 
 ```ts
-// mocks/Mutation/createPost/0.ts
-export default () => ({
-  id: "101",
-  title: "Created post",
-  content: "New post content",
-});
-```
+// mocks/Query/user/0.ts   – success (default)
+export default () => ({ id: "1", name: "Alice" });
 
-Example query mock:
-
-```ts
-// mocks/Query/user/0.ts - found user
-export default () => ({
-  id: "2",
-  name: "Bob",
-  role: "USER",
-  posts: []
-});
-
-// mocks/Query/user/1.ts - not found variant throws an error
+// mocks/Query/user/1.ts   – not-found (throws)
 import { GraphQLError } from "graphql";
-export default () => {
-  throw new GraphQLError("User not found");
-};
+export default () => { throw new GraphQLError("User not found"); };
 ```
 
-Variant numbers begin at `0`.  A file named `0.ts` is treated as the default when no variant is specified.
+* Variant numbers start at `0`; `0` is used when no variant is specified.
+* Missing mocks fall back to **automatic data generation** based on the schema.
 
-Mocks are optional.  If a field or type has no mock file the server automatically
-generates values based on the GraphQL schema.  For example `Query.posts` in the
-sample schema works without any mock file because the `Post` and `User` type
-level mocks provide shape information for auto generated data.
+---
 
-### Configuration
-
-Copy `config/config.example.yml` to `config/config.yml` and edit the file to select the default mock variants and specify the downstream GraphQL API used for passthroughs.
+## ⚙️ Configuration (`config/config.yml`)
 
 ```yaml
-use_example: true
+use_example: true                 # load bundled samples
 downstream_url: "http://localhost:4000/graphql"
 
 mocks:
   Mutation:
-    login: 0
+    login: 0                      # default variant
 ```
 
-- `downstream_url` – real GraphQL endpoint used when a field is set to `-1`.
-- `mocks` – default variant for each type or field.  Omit entries to fall back to `0.ts` when available.
-- `use_example` – load the bundled sample schema and mocks instead of local files.
-- When set to `false` you must create `./schema` and `./mocks` in the repository
-  root or run `npm run link` to create symlinks to another project.
+| Key | Description |
+|-----|-------------|
+| **downstream_url** | Real GraphQL endpoint for passthroughs (`-1`). |
+| **mocks** | Default variant per type/field (omit to use `0`). |
+| **use_example** | `true` = sample schema/mocks, `false` = project files. |
 
-Restart the server after changing `config.yml`.
+Restart the server after editing the file.
 
-### Selecting variants per request
+---
 
-Clients can override the configuration without restarting the server by sending a `mock_config` cookie.  The format mirrors the `mocks` section from the configuration file.
+## 🍪 Per-Request Variant Selection
+
+Send a `mock_config` cookie whose JSON mirrors the `mocks` section:
 
 ```
 mock_config={"Mutation":{"login":1},"Query":{"posts":-1}}
 ```
 
-Numbers select a variant in the `mocks` directory.  Using `-1` forwards that field to the real server specified by `downstream_url`.
+* Positive numbers pick a variant file.
+* `-1` forwards the field to `downstream_url`.
 
-For example the `login` mutation provides two variants:
+---
 
-```ts
-// mocks/Mutation/login/0.ts - success
-export default () => ({
-  token: "abcd1234",
-  user: { id: "1", name: "Alice", role: "ADMIN" }
-});
+## 🧩 Chrome Extension (optional)
 
-// mocks/Mutation/login/1.ts - error variant throws an error
-import { GraphQLError } from "graphql";
-export default () => {
-  throw new GraphQLError("Invalid credentials");
-};
-```
+The helper extension in **chrome-extension/** lets you:
 
-You can request the error variant by sending:
+1. Load your schema (for auto-completion).
+2. Pick variant numbers in a UI.
+3. Click **Apply** to set the `mock_config` cookie for the current tab.
 
-```
-mock_config={"Mutation":{"login":1}}
-```
+The popup stores your last schema and selections, and shows a prettified JSON preview for copy-pasting. Variants left at `0` are omitted from the JSON.
 
-Query variants work the same way. The following cookie picks the "not found" variant for `Query.user`:
+---
 
-```
-mock_config={"Query":{"user":1}}
-```
+## 🔄 Passthrough Example
 
-### Chrome extension
-
-To simplify editing the `mock_config` cookie a Chrome extension lives in
-`chrome-extension/`. Load this folder as an unpacked extension, upload
-your GraphQL schema, adjust variant numbers in the popup and press
-**Apply**. The extension sets the cookie for the active tab based on the
-form values. Your last uploaded schema and variant selections are stored
-so reopening the popup restores them automatically.
-The popup now displays the current configuration as beautified JSON next
-to the form. Use the **Copy** button to copy the JSON to your clipboard
-for sharing or inspection.
-Variants left at `0` are omitted from the JSON preview since `0` is treated as the default.
-The form and JSON preview each scroll independently and horizontally if needed so
-the **Apply** button stays visible above them.
-
-### Passthrough example
-
-To fetch data for `Query.user` from the real API while using local mocks for everything else:
+Use live data for `Query.user`, mocks for everything else:
 
 ```
 mock_config={"Query":{"user":-1}}
 ```
 
-The rest of the query is resolved by the selected mocks.
+---
 
-## Development notes
+## 🛠 Development Notes
 
-The server is written in TypeScript and executed via `tsx`.  After modifying the schema or mocks you will need to restart the server.  For contribution guidelines see [AGENTS.md](./AGENTS.md).
+* Written in **TypeScript** and executed via **tsx**.
+* Restart after changing schema or mocks (or add a watcher).
+* Contribution guidelines live in [AGENTS.md](./AGENTS.md).
+
+---
+
+## 📄 License
+
+MIT © 2025 Imit8r Contributors
